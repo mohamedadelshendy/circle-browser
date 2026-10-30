@@ -20,9 +20,9 @@
   }
 
   const quickSites: Suggestion[] = [
-    { type: "quick", title: "Brave Search - Private Web Search", target: "https://search.brave.com" },
-    { type: "quick", title: "DuckDuckGo - Privacy-First Search", target: "https://duckduckgo.com" },
+    { type: "quick", title: "Google Search", target: "https://www.google.com" },
     { type: "quick", title: "GitHub - Where the world builds software", target: "https://github.com" },
+    { type: "quick", title: "YouTube - Videos and Music", target: "https://youtube.com" },
     { type: "quick", title: "Wikipedia - The Free Encyclopedia", target: "https://wikipedia.org" },
   ];
 
@@ -37,7 +37,7 @@
     const list: Suggestion[] = [
       {
         type: "search",
-        title: `Search Brave for "${query}"`,
+        title: `Search Google for "${query}"`,
         target: query,
       },
     ];
@@ -61,7 +61,7 @@
   }
 
   $: if (!isFocused) {
-    if (url.includes("search.brave.com") && !url.includes("?q=")) {
+    if (url === "browser://newtab" || url.includes("newtab.html") || url === "about:blank") {
       inputVal = "";
     } else {
       inputVal = url;
@@ -112,16 +112,20 @@
 
 <div class="omnibox-container">
   <div class="omnibox-wrapper {isFocused ? 'focused' : ''}">
-    <div class="omnibox-icon" title="Secure & Private">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+    <!-- Google 4-Color Icon -->
+    <div class="omnibox-icon" title="Search Google">
+      <svg viewBox="0 0 24 24" width="14" height="14">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
       </svg>
     </div>
 
     <input
       type="text"
       class="omnibox-input"
-      placeholder="Search Brave or type a URL"
+      placeholder="Search Google or type a URL"
       bind:value={inputVal}
       on:focus={handleFocus}
       on:blur={handleBlur}
@@ -193,8 +197,14 @@
   }
 
   .omnibox-wrapper.focused {
-    border-color: var(--border-omnibox-focus);
+    border-color: #818cf8;
     background: #191722;
+  }
+
+  .omnibox-icon {
+    display: flex;
+    align-items: center;
+    margin-right: 8px;
   }
 
   .progress-bar {
@@ -203,7 +213,7 @@
     left: 0;
     height: 2px;
     width: 100%;
-    background: linear-gradient(90deg, var(--accent-color), #ff8a65);
+    background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
     animation: indeterminate 1.5s infinite linear;
   }
 
@@ -254,7 +264,7 @@
 
   .suggestion-item:hover .suggestion-icon,
   .suggestion-item.selected .suggestion-icon {
-    color: var(--accent-color);
+    color: #818cf8;
   }
 
   .suggestion-text {

@@ -50,10 +50,19 @@
 </script>
 
 <div class="tab-bar">
-  <!-- Brand Icon matching Brave Mockup -->
-  <div class="brand-icon" title="Titan Browser">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.18l7 3.12v4.7c0 4.54-3.14 8.78-7 9.88-3.86-1.1-7-5.34-7-9.88V6.3l7-3.12z"/>
+  <!-- Circle Browser Brand Icon -->
+  <div class="brand-icon" title="Circle Browser">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="10" stroke="url(#circleGrad)" stroke-width="2.5" stroke-dasharray="45 15"/>
+      <circle cx="12" cy="12" r="6" stroke="#c084fc" stroke-width="2"/>
+      <circle cx="12" cy="12" r="2.5" fill="#ffffff"/>
+      <defs>
+        <linearGradient id="circleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#38bdf8"/>
+          <stop offset="50%" stop-color="#818cf8"/>
+          <stop offset="100%" stop-color="#c084fc"/>
+        </linearGradient>
+      </defs>
     </svg>
   </div>
 

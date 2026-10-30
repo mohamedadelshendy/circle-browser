@@ -66,10 +66,17 @@
   <div class="shields-card">
     <div class="shields-header">
       <div class="brand">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--accent-color)">
-          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="url(#shieldGrad)" stroke-width="2.5"/>
+          <circle cx="12" cy="12" r="5" fill="#818cf8"/>
+          <defs>
+            <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#38bdf8"/>
+              <stop offset="100%" stop-color="#c084fc"/>
+            </linearGradient>
+          </defs>
         </svg>
-        <span class="title">Titan Shields</span>
+        <span class="title">Circle Shields</span>
       </div>
       <button class="close-btn" on:click={() => dispatch("close")} aria-label="Close">&times;</button>
     </div>

@@ -2,6 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    titan_browser_lib::run();
+    circle_browser_lib::run();
 }
-

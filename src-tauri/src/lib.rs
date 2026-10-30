@@ -50,7 +50,7 @@ pub fn run() {
 
             // 1. Create frameless parent OS window
             let window = WindowBuilder::new(app, "main")
-                .title("Titan Browser")
+                .title("Circle Browser")
                 .inner_size(1280.0, 800.0)
                 .min_inner_size(700.0, 500.0)
                 .decorations(false) // Frameless to render custom Brave/Chrome-style top bar

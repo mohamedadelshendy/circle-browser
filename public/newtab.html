@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>New tab</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      background: radial-gradient(circle at 50% 60%, #1e053a 0%, #0d021b 60%, #06010f 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding-top: 14vh;
+    }
+
+    .search-container {
+      width: 100%;
+      max-width: 580px;
+      padding: 0 16px;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .search-box {
+      width: 100%;
+      height: 48px;
+      background: #1b1726;
+      border: 1px solid #322b42;
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .search-box:focus-within {
+      background: #211c30;
+      border-color: #5d4a7a;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(120, 80, 200, 0.25);
+    }
+
+    .google-icon {
+      width: 20px;
+      height: 20px;
+      margin-right: 14px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .search-input {
+      flex: 1;
+      height: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #f1f0f5;
+      font-size: 15px;
+      letter-spacing: 0.2px;
+    }
+
+    .search-input::placeholder {
+      color: #837e93;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="search-container">
+    <form class="search-box" id="search-form">
+      <!-- Google 4-Color Icon matching the mockup -->
+      <div class="google-icon">
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+        </svg>
+      </div>
+
+      <input
+        type="text"
+        id="search-input"
+        class="search-input"
+        placeholder="Search the web"
+        autofocus
+        autocomplete="off"
+        spellcheck="false"
+      />
+    </form>
+  </div>
+
+  <script>
+    const form = document.getElementById('search-form');
+    const input = document.getElementById('search-input');
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const query = input.value.trim();
+      if (!query) return;
+
+      // Detect if input is already a direct URL
+      const hasSpaces = query.includes(' ');
+      const hasDot = query.includes('.');
+      const isLocalhost = query.startsWith('localhost');
+
+      if (!hasSpaces && (query.startsWith('http://') || query.startsWith('https://'))) {
+        window.location.href = query;
+      } else if (!hasSpaces && (hasDot || isLocalhost)) {
+        window.location.href = 'https://' + query;
+      } else {
+        // Direct search to Google
+        window.location.href = 'https://www.google.com/search?q=' + encodeURIComponent(query);
+      }
+    });
+  </script>
+</body>
+</html>

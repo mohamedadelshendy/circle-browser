@@ -1,4 +1,4 @@
-name: "Build & Release Titan Browser"
+name: "Build & Release Circle Browser"
 
 on:
   push:
@@ -74,9 +74,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__ # Will create a release if triggered by tag
-          releaseName: "Titan Browser v__VERSION__"
-          releaseBody: "Automated release of Titan Browser built with Tauri v2, Wry, and Svelte."
+          tagName: v__VERSION__
+          releaseName: "Circle Browser v__VERSION__"
+          releaseBody: "Official release of Circle Browser built with Tauri v2, Wry, and Svelte."
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
@@ -84,7 +84,7 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: titan-browser-${{ matrix.platform }}-${{ matrix.target }}
+          name: circle-browser-${{ matrix.platform }}-${{ matrix.target }}
           path: |
             src-tauri/target/release/bundle/
             src-tauri/target/${{ matrix.target }}/release/bundle/

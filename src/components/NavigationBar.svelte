@@ -107,12 +107,13 @@
     <!-- Shields Protection Toggle -->
     <button
       class="action-btn shield-btn {showShields ? 'active' : ''}"
-      title="Titan Shields: 14 trackers & ads blocked"
+      title="Circle Shields: trackers & ads blocked"
       on:click={toggleShields}
-      aria-label="Titan Shields"
+      aria-label="Circle Shields"
     >
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z"/>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+        <circle cx="12" cy="12" r="4" fill="currentColor"/>
       </svg>
     </button>
 
@@ -124,7 +125,7 @@
     <!-- Hamburger Menu -->
     <button
       class="action-btn menu-btn {showMenu ? 'active' : ''}"
-      title="Customize and control Titan"
+      title="Customize and control Circle"
       on:click={toggleMenu}
       aria-label="Menu"
     >

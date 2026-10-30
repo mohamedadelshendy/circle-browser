@@ -55,7 +55,7 @@
       <span class="shortcut">Ctrl+,</span>
     </button>
     <button class="menu-item exit" on:click={handleExit}>
-      <span>Exit Titan</span>
+      <span>Exit Circle</span>
       <span class="shortcut">Alt+F4</span>
     </button>
   </div>

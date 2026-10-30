@@ -8,7 +8,7 @@ impl NavigationResolver {
     pub fn resolve(input: &str, default_search_engine: &str) -> String {
         let trimmed = input.trim();
         if trimmed.is_empty() {
-            return "https://search.brave.com".to_string();
+            return "browser://newtab".to_string();
         }
 
         // Internal schema handling
@@ -39,14 +39,12 @@ impl NavigationResolver {
             }
         }
 
-        // Fallback: encode as search query
+        // Fallback: encode as search query defaulting to Google Search
         let encoded_query: String = url::form_urlencoded::byte_serialize(trimmed.as_bytes()).collect();
 
         match default_search_engine.to_lowercase().as_str() {
             "duckduckgo" => format!("https://duckduckgo.com/?q={}", encoded_query),
-            "google" => format!("https://www.google.com/search?q={}", encoded_query),
-            _ => format!("https://search.brave.com/search?q={}", encoded_query),
+            _ => format!("https://www.google.com/search?q={}", encoded_query),
         }
     }
 }
-

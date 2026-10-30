@@ -1,12 +1,12 @@
 [package]
-name = "titan-browser"
+name = "circle-browser"
 version = "0.1.0"
 description = "Ultra-fast, lightweight, privacy-first native desktop browser built with Tauri v2, Wry, and Rust"
-authors = ["Titan Architecture Team"]
+authors = ["Circle Browser Team"]
 edition = "2021"
 
 [lib]
-name = "titan_browser_lib"
+name = "circle_browser_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -20,4 +20,3 @@ url = "2.5"
 uuid = { version = "1.8", features = ["v4", "serde"] }
 thiserror = "1.0"
 parking_lot = "0.12"
-

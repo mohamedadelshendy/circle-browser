@@ -25,7 +25,7 @@ pub struct TabManagerState(pub Arc<Mutex<TabManager>>);
 impl TabManager {
     pub fn new(shield_manager: Arc<Mutex<ShieldManager>>) -> Self {
         Self {
-            tabs: Vec::new(),
+            tabs: Vec::new>,
             active_tab_id: None,
             shield_manager,
         }
@@ -38,10 +38,17 @@ impl TabManager {
         window: &Window,
         target_url: Option<String>,
     ) -> Result<Tab, String> {
-        let raw_input = target_url.unwrap_or_else(|| "https://search.brave.com".to_string());
-        let resolved_url_str = NavigationResolver::resolve(&raw_input, "brave");
-        let parsed_url = Url::parse(&resolved_url_str)
-            .map_err(|e| format!("Invalid URL '{resolved_url_str}': {e}"))?;
+        let raw_input = target_url.unwrap_or_else(|| "browser://newtab".to_string());
+        let resolved_url_str = NavigationResolver::resolve(&raw_input, "google");
+
+        let is_new_tab = resolved_url_str == "browser://newtab" || resolved_url_str == "about:blank";
+        let webview_url = if is_new_tab {
+            WebviewUrl::App("newtab.html".into())
+        } else {
+            let parsed = Url::parse(&resolved_url_str)
+                .map_err(|e| format!("Invalid URL '{resolved_url_str}': {e}"))?;
+            WebviewUrl::External(parsed)
+        };
 
         let tab_id = format!("tab_{}", Uuid::new_v4().simple());
         let webview_label = tab_id.clone();
@@ -59,7 +66,7 @@ impl TabManager {
         let tab_id_for_load = tab_id.clone();
         let shield_mgr = self.shield_manager.clone();
 
-        let webview_builder = WebviewBuilder::new(&webview_label, WebviewUrl::External(parsed_url))
+        let webview_builder = WebviewBuilder::new(&webview_label, webview_url)
             .initialization_script(&defuser_script)
             .on_navigation(move |nav_url| {
                 let url_str = nav_url.to_string();
@@ -125,7 +132,11 @@ impl TabManager {
         // 6. Present the new WebView
         let _ = new_webview.show();
 
-        let tab = Tab::new(tab_id.clone(), resolved_url_str);
+        let mut tab = Tab::new(tab_id.clone(), resolved_url_str);
+        if is_new_tab {
+            tab.title = "New tab".to_string();
+        }
+
         self.tabs.push(tab.clone());
         self.active_tab_id = Some(tab_id.clone());
 
@@ -268,14 +279,32 @@ impl TabManager {
     }
 
     pub fn navigate(&mut self, app_handle: &AppHandle, tab_id: &str, input: &str) -> Result<(), String> {
-        let resolved_url = NavigationResolver::resolve(input, "brave");
-        let parsed = Url::parse(&resolved_url).map_err(|e| format!("Failed to parse URL: {e}"))?;
-
+        let resolved_url = NavigationResolver::resolve(input, "google");
         let wv = app_handle.get_webview(tab_id).ok_or("Webview not found")?;
-        wv.navigate(parsed).map_err(|e| format!("Navigation failed: {e}"))?;
+
+        if resolved_url == "browser://newtab" {
+            wv.eval("window.location.href = 'newtab.html';")
+                .map_err(|e| format!("Navigation failed: {e}"))?;
+        } else {
+            let parsed = Url::parse(&resolved_url).map_err(|e| format!("Failed to parse URL: {e}"))?;
+            wv.navigate(parsed).map_err(|e| format!("Navigation failed: {e}"))?;
+        }
 
         if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == tab_id) {
             tab.url = resolved_url;
+            if tab.url == "browser://newtab" {
+                tab.title = "New tab".to_string();
+            } else if tab.url.contains("google.com/search") {
+                if let Ok(u) = Url::parse(&tab.url) {
+                    if let Some((_, q)) = u.query_pairs().find(|(k, _)| k == "q") {
+                        tab.title = format!("{q} - Google Search");
+                    } else {
+                        tab.title = "Google Search".to_string();
+                    }
+                } else {
+                    tab.title = "Google Search".to_string();
+                }
+            }
         }
 
         let _ = app_handle.emit(

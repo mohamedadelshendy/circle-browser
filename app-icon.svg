@@ -1,16 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ff7a45"/>
-      <stop offset="100%" stop-color="#fb542b"/>
+    <radialGradient id="circleBg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#1e0b36"/>
+      <stop offset="70%" stop-color="#0c021a"/>
+      <stop offset="100%" stop-color="#05010a"/>
+    </radialGradient>
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#c084fc"/>
     </linearGradient>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#181622"/>
-      <stop offset="100%" stop-color="#0c0a14"/>
+    <linearGradient id="innerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f43f5e"/>
+      <stop offset="50%" stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
-  <path d="M256 70 L96 140 V260 C96 362 164 456 256 482 C348 456 416 362 416 260 V140 Z" fill="url(#shieldGrad)"/>
-  <path d="M256 120 L376 172 V258 C376 338 325 410 256 434 C187 410 136 338 136 258 V172 Z" fill="#ffffff" opacity="0.15"/>
-  <path d="M256 160 L336 195 V256 C336 312 302 364 256 382 C210 364 176 312 176 256 V195 Z" fill="#ffffff"/>
+
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#circleBg)"/>
+
+  <!-- Outer Orbit Ring -->
+  <circle cx="256" cy="256" r="190" fill="none" stroke="url(#ringGrad)" stroke-width="26" stroke-linecap="round" stroke-dasharray="850 180" transform="rotate(-45 256 256)"/>
+
+  <!-- Inner Dynamic Ring -->
+  <circle cx="256" cy="256" r="130" fill="none" stroke="url(#innerGrad)" stroke-width="20" stroke-linecap="round" stroke-dasharray="580 120" transform="rotate(75 256 256)"/>
+
+  <!-- Core Circle -->
+  <circle cx="256" cy="256" r="64" fill="#ffffff" opacity="0.95"/>
+  <circle cx="256" cy="256" r="44" fill="#818cf8"/>
+  <circle cx="256" cy="256" r="24" fill="#ffffff"/>
 </svg>
