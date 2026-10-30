@@ -1,16 +1,19 @@
 :root {
-  --bg-tab-bar: #181622;
-  --bg-nav-bar: #232030;
-  --bg-active-tab: #232030;
-  --bg-tab-hover: #2c283c;
-  --bg-omnibox: #14121d;
-  --border-omnibox: #3b374e;
-  --border-omnibox-focus: #818cf8;
-  --text-primary: #f0eff4;
-  --text-muted: #9693a5;
-  --btn-hover: #343046;
-  --accent-color: #818cf8;
-  --danger-color: #e53e3e;
+  --bg-frame: #0f1012;
+  --bg-toolbar: #191a1d;
+  --bg-active-tab: #191a1d;
+  --bg-tab-hover: rgba(255, 255, 255, 0.06);
+  --bg-omnibox: #27282b;
+  --border-omnibox: #3c3f44;
+  --border-omnibox-focus: rgba(99, 102, 241, 0.4);
+  --border-omnibox-focus-stroke: #6366f1;
+  --text-primary: #f1f2f6;
+  --text-muted: #9ea3ae;
+  --text-placeholder: #71757e;
+  --btn-hover: rgba(255, 255, 255, 0.08);
+  --btn-close-hover: #e53935;
+  --accent-lion: #fb542b;
+  --accent-purple: #818cf8;
 }
 
 * {
@@ -21,12 +24,12 @@
 
 body, html {
   width: 100%;
-  height: 76px;
+  height: 88px;
   overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 13px;
   color: var(--text-primary);
-  background: var(--bg-tab-bar);
+  background: var(--bg-frame);
   user-select: none;
   -webkit-user-select: none;
 }
@@ -35,16 +38,20 @@ body, html {
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: 76px;
+  height: 88px;
+  background: var(--bg-frame);
 }
 
-/* Row 1: Tab Bar */
+/* ==========================================================================
+   Layer 1: Top Window Frame & Tab Strip (Height: 40px, Background: #0f1012)
+   ========================================================================== */
 .tab-bar {
   display: flex;
-  align-items: center;
-  height: 36px;
-  background: var(--bg-tab-bar);
-  padding: 0 4px;
+  align-items: flex-end;
+  height: 40px;
+  background: var(--bg-frame);
+  padding: 0 0 0 8px;
+  position: relative;
   -webkit-app-region: drag;
 }
 
@@ -55,8 +62,18 @@ body, html {
   align-items: center;
   justify-content: center;
   margin-right: 6px;
-  color: var(--accent-color);
+  margin-bottom: 3px;
+  color: var(--accent-lion);
   -webkit-app-region: no-drag;
+  cursor: pointer;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.brand-icon:hover {
+  background: var(--btn-hover);
 }
 
 .tabs-container {
@@ -77,18 +94,19 @@ body, html {
 .tab {
   display: flex;
   align-items: center;
-  height: 32px;
+  height: 34px;
   min-width: 140px;
   max-width: 240px;
-  padding: 0 10px;
+  flex: 1;
+  padding: 0 8px 0 10px;
   background: transparent;
   color: var(--text-muted);
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
+  border-radius: 8px 8px 0 0;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 12.5px;
   transition: background 0.15s, color 0.15s;
   -webkit-app-region: no-drag;
+  position: relative;
 }
 
 .tab:hover {
@@ -102,17 +120,35 @@ body, html {
   font-weight: 500;
 }
 
+.tab-favicon {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.tab.active .tab-favicon {
+  color: var(--accent-lion);
+}
+
 .tab-title {
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-right: 6px;
+  margin-right: 4px;
+  font-size: 12.5px;
+  line-height: 1.2;
 }
 
-.tab-close-btn {
-  width: 18px;
-  height: 18px;
+/* Close button: 16x16 icon inside a 24x24 hover circle */
+.tab-close-circle {
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -120,13 +156,14 @@ body, html {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 14px;
   cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
 }
 
-.tab-close-btn:hover {
-  background: var(--btn-hover);
-  color: var(--text-primary);
+.tab-close-circle:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
 
 .new-tab-btn {
@@ -135,14 +172,15 @@ body, html {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: 50%;
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 16px;
   cursor: pointer;
   margin-left: 4px;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
   -webkit-app-region: no-drag;
 }
 
@@ -151,17 +189,18 @@ body, html {
   color: var(--text-primary);
 }
 
-/* Window Controls */
+/* Window Control Buttons (Far Right): 46px wide x 32px high, no-drag */
 .window-controls {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   height: 100%;
+  margin-left: 8px;
   -webkit-app-region: no-drag;
 }
 
 .win-btn {
-  width: 44px;
-  height: 36px;
+  width: 46px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -169,7 +208,7 @@ body, html {
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.12s, color 0.12s;
 }
 
 .win-btn:hover {
@@ -178,103 +217,218 @@ body, html {
 }
 
 .win-btn.close:hover {
-  background: var(--danger-color);
-  color: white;
+  background: var(--btn-close-hover);
+  color: #ffffff;
 }
 
-/* Row 2: Navigation & Omnibar */
+/* ==========================================================================
+   Layer 2: Navigation Toolbar (Height: 48px, Background: #191a1d, Padding: 6px 12px)
+   ========================================================================== */
 .nav-bar {
   display: flex;
   align-items: center;
-  height: 40px;
-  background: var(--bg-nav-bar);
-  padding: 0 8px;
-  gap: 6px;
+  height: 48px;
+  background: var(--bg-toolbar);
+  padding: 6px 12px;
+  gap: 8px;
   -webkit-app-region: no-drag;
 }
 
-.nav-btn {
-  width: 28px;
-  height: 28px;
+.nav-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nav-circle-btn {
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: transparent;
   border: none;
   border-radius: 50%;
-  color: var(--text-primary);
-  font-size: 15px;
+  color: var(--text-muted);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
 }
 
-.nav-btn:hover:not(:disabled) {
+.nav-circle-btn:hover:not(:disabled) {
   background: var(--btn-hover);
+  color: var(--text-primary);
 }
 
-.nav-btn:disabled {
+.nav-circle-btn:disabled {
   opacity: 0.35;
   cursor: default;
 }
 
-.omnibox-wrapper {
+.nav-circle-btn.bookmark.active {
+  color: #fbbf24;
+}
+
+/* Omnibox / URL Bar (Center-expanded flex) */
+.omnibox-container {
+  position: relative;
   flex: 1;
   display: flex;
+  flex-direction: column;
+}
+
+.omnibox-wrapper {
+  position: relative;
+  display: flex;
   align-items: center;
-  height: 28px;
+  height: 34px;
   background: var(--bg-omnibox);
   border: 1px solid var(--border-omnibox);
-  border-radius: 14px;
-  padding: 0 10px;
-  transition: border-color 0.15s;
+  border-radius: 17px;
+  padding: 0 6px 0 0;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  overflow: hidden;
 }
 
-.omnibox-wrapper:focus-within {
-  border-color: var(--border-omnibox-focus);
+.omnibox-wrapper.focused {
+  border-color: var(--border-omnibox-focus-stroke);
+  box-shadow: 0 0 0 2px var(--border-omnibox-focus);
+  background: #202124;
 }
 
-.omnibox-icon {
+.omnibox-left-icon {
+  width: 18px;
+  height: 18px;
+  margin-left: 10px;
   margin-right: 8px;
   display: flex;
   align-items: center;
-  color: var(--accent-color);
+  justify-content: center;
+  color: var(--accent-lion);
+  flex-shrink: 0;
+  cursor: pointer;
+  border: none;
+  background: transparent;
 }
 
 .omnibox-input {
   flex: 1;
+  height: 100%;
   background: transparent;
   border: none;
   outline: none;
   color: var(--text-primary);
   font-size: 13px;
+  letter-spacing: 0.15px;
 }
 
 .omnibox-input::placeholder {
-  color: #7b788c;
+  color: var(--text-placeholder);
 }
 
-.action-controls {
+.omnibox-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 4px;
+}
+
+.omnibox-action-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.omnibox-action-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Right Controls (Media/Audio, Extensions puzzle piece, 3-dots Menu): each 32x32px */
+.right-controls-group {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.action-btn {
-  width: 28px;
-  height: 28px;
+.tool-circle-btn {
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: 50%;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 14px;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
 }
 
-.action-btn:hover {
+.tool-circle-btn:hover {
   background: var(--btn-hover);
   color: var(--text-primary);
 }
 
+.tool-circle-btn.active {
+  background: var(--btn-hover);
+  color: var(--accent-lion);
+}
+
+/* Autocomplete Suggestions Dropdown */
+.suggestions-dropdown {
+  position: absolute;
+  top: 38px;
+  left: 0;
+  width: 100%;
+  background: #1e1b2b;
+  border: 1px solid var(--border-omnibox);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  z-index: 100;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.suggestion-item:hover,
+.suggestion-item.selected {
+  background: #2e2a40;
+  color: #ffffff;
+}
+
+.suggestion-icon {
+  display: flex;
+  align-items: center;
+  margin-right: 10px;
+  color: var(--text-muted);
+}
+
+.suggestion-item:hover .suggestion-icon,
+.suggestion-item.selected .suggestion-icon {
+  color: var(--accent-lion);
+}
+
+.suggestion-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

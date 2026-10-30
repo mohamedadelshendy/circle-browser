@@ -1,7 +1,7 @@
 use tauri::{LogicalPosition, LogicalSize, Position, Rect, Size, Window};
 
-/// Default height of the custom browser chrome bar (tabs + navigation + omnibox)
-pub const CHROME_BAR_HEIGHT: f64 = 76.0;
+/// Fixed height of the custom browser chrome bar (40px tab strip + 48px nav toolbar = 88px)
+pub const CHROME_BAR_HEIGHT: f64 = 88.0;
 
 #[derive(Debug, Clone, Copy)]
 pub struct LayoutBounds {
