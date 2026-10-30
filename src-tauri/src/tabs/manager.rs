@@ -25,7 +25,7 @@ pub struct TabManagerState(pub Arc<Mutex<TabManager>>);
 impl TabManager {
     pub fn new(shield_manager: Arc<Mutex<ShieldManager>>) -> Self {
         Self {
-            tabs: Vec::new>,
+            tabs: Vec::new(),
             active_tab_id: None,
             shield_manager,
         }
