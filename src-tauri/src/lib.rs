@@ -41,6 +41,8 @@ pub fn run() {
             expand_chrome,
             collapse_chrome,
             set_sidebar_width,
+            set_sidebar_mode,
+            set_sidebar_overlay,
             toggle_sidebar_position,
             minimize_window,
             maximize_window,
@@ -57,11 +59,11 @@ pub fn run() {
                 .decorations(false) // Frameless to render custom top bar
                 .build()?;
 
-            let (init_width, init_pos) = {
+            let (init_width, init_pos, init_mode, is_open) = {
                 let mgr = tab_manager_state.inner.lock();
-                (mgr.sidebar_width, mgr.sidebar_position)
+                (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open)
             };
-            let layout = BoundsCalculator::compute_layout(&window, init_width, init_pos)?;
+            let layout = BoundsCalculator::compute_layout(&window, init_width, init_pos, init_mode, is_open)?;
 
             // 2. Attach UI Sidebar Webview
             let chrome_builder = WebviewBuilder::new("chrome", WebviewUrl::App("index.html".into()));
@@ -90,15 +92,15 @@ pub fn run() {
                     }
 
                     if let Some(main_win) = handle_for_resize.get_window("main") {
-                        let (width, pos, active_id) = {
+                        let (width, pos, mode, is_open, active_id) = {
                             if let Some(mgr) = tab_mgr_for_resize.inner.try_lock() {
-                                (mgr.sidebar_width, mgr.sidebar_position, mgr.active_tab_id.clone())
+                                (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open, mgr.active_tab_id.clone())
                             } else {
-                                (SIDEBAR_WIDTH, crate::tabs::SidebarPosition::Left, None)
+                                (SIDEBAR_WIDTH, crate::tabs::SidebarPosition::Left, crate::tabs::SidebarMode::Docked, false, None)
                             }
                         };
 
-                        if let Ok(layout) = BoundsCalculator::compute_layout(&main_win, width, pos) {
+                        if let Ok(layout) = BoundsCalculator::compute_layout(&main_win, width, pos, mode, is_open) {
                             if let Some(chrome) = handle_for_resize.get_webview("chrome") {
                                 let _ = chrome.set_bounds(layout.chrome_rect);
                             }

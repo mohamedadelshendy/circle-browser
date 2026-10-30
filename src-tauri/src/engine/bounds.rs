@@ -1,5 +1,5 @@
 use tauri::{LogicalPosition, LogicalSize, Position, Rect, Size, Window};
-use crate::tabs::SidebarPosition;
+use crate::tabs::{SidebarMode, SidebarPosition};
 
 /// Default width of the vertical sidebar (240px)
 pub const SIDEBAR_WIDTH: f64 = 240.0;
@@ -16,11 +16,13 @@ pub struct BoundsCalculator;
 
 impl BoundsCalculator {
     /// Computes exact pixel-perfect logical bounds for the sidebar (chrome)
-    /// and the active tab content WebView with zero gaps to prevent mouse drop issues.
+    /// and the active tab content WebView, supporting both Docked and Auto-Hide sticky overlay modes.
     pub fn compute_layout(
         window: &Window,
         sidebar_width: f64,
         position: SidebarPosition,
+        mode: SidebarMode,
+        is_overlay_open: bool,
     ) -> Result<LayoutBounds, String> {
         let physical_size = window
             .inner_size()
@@ -31,45 +33,82 @@ impl BoundsCalculator {
             .map_err(|e| format!("Failed to retrieve scale factor: {e}"))?;
 
         let logical_size = physical_size.to_logical::<f64>(scale_factor);
-        let clamped_width = sidebar_width.max(0.0).min(logical_size.width);
-        let content_width = (logical_size.width - clamped_width).max(0.0);
+        let clamped_width = sidebar_width.max(180.0).min(logical_size.width);
 
-        match position {
-            SidebarPosition::Left => {
-                // Sidebar pinned to the left edge, full height
-                let chrome_rect = Rect {
-                    position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
-                    size: Size::Logical(LogicalSize::new(clamped_width, logical_size.height)),
-                };
-
-                // Content WebView fills the remaining right side completely (zero dead-zone gaps)
-                let content_rect = Rect {
-                    position: Position::Logical(LogicalPosition::new(clamped_width, 0.0)),
-                    size: Size::Logical(LogicalSize::new(content_width, logical_size.height)),
-                };
-
-                Ok(LayoutBounds {
-                    chrome_rect,
-                    content_rect,
-                })
+        match mode {
+            SidebarMode::Docked => {
+                let content_width = (logical_size.width - clamped_width).max(0.0);
+                match position {
+                    SidebarPosition::Left => {
+                        let chrome_rect = Rect {
+                            position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
+                            size: Size::Logical(LogicalSize::new(clamped_width, logical_size.height)),
+                        };
+                        let content_rect = Rect {
+                            position: Position::Logical(LogicalPosition::new(clamped_width, 0.0)),
+                            size: Size::Logical(LogicalSize::new(content_width, logical_size.height)),
+                        };
+                        Ok(LayoutBounds { chrome_rect, content_rect })
+                    }
+                    SidebarPosition::Right => {
+                        let content_rect = Rect {
+                            position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
+                            size: Size::Logical(LogicalSize::new(content_width, logical_size.height)),
+                        };
+                        let chrome_rect = Rect {
+                            position: Position::Logical(LogicalPosition::new(content_width, 0.0)),
+                            size: Size::Logical(LogicalSize::new(clamped_width, logical_size.height)),
+                        };
+                        Ok(LayoutBounds { chrome_rect, content_rect })
+                    }
+                }
             }
-            SidebarPosition::Right => {
-                // Content WebView fills the left side
+            SidebarMode::AutoHide => {
+                // Content WebView is ALWAYS 100% full screen
                 let content_rect = Rect {
                     position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
-                    size: Size::Logical(LogicalSize::new(content_width, logical_size.height)),
+                    size: Size::Logical(LogicalSize::new(logical_size.width, logical_size.height)),
                 };
 
-                // Sidebar pinned to the right edge
-                let chrome_rect = Rect {
-                    position: Position::Logical(LogicalPosition::new(content_width, 0.0)),
-                    size: Size::Logical(LogicalSize::new(clamped_width, logical_size.height)),
+                let trigger_width = 12.0; // 12px invisible edge trigger strip
+                let overlay_width = clamped_width.max(250.0);
+
+                let chrome_rect = match position {
+                    SidebarPosition::Left => {
+                        if is_overlay_open {
+                            Rect {
+                                position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
+                                size: Size::Logical(LogicalSize::new(overlay_width, logical_size.height)),
+                            }
+                        } else {
+                            Rect {
+                                position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
+                                size: Size::Logical(LogicalSize::new(trigger_width, logical_size.height)),
+                            }
+                        }
+                    }
+                    SidebarPosition::Right => {
+                        if is_overlay_open {
+                            Rect {
+                                position: Position::Logical(LogicalPosition::new(
+                                    (logical_size.width - overlay_width).max(0.0),
+                                    0.0,
+                                )),
+                                size: Size::Logical(LogicalSize::new(overlay_width, logical_size.height)),
+                            }
+                        } else {
+                            Rect {
+                                position: Position::Logical(LogicalPosition::new(
+                                    (logical_size.width - trigger_width).max(0.0),
+                                    0.0,
+                                )),
+                                size: Size::Logical(LogicalSize::new(trigger_width, logical_size.height)),
+                            }
+                        }
+                    }
                 };
 
-                Ok(LayoutBounds {
-                    chrome_rect,
-                    content_rect,
-                })
+                Ok(LayoutBounds { chrome_rect, content_rect })
             }
         }
     }

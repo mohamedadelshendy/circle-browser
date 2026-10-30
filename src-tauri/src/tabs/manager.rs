@@ -20,11 +20,19 @@ pub enum SidebarPosition {
     Right,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SidebarMode {
+    Docked,
+    AutoHide,
+}
+
 pub struct TabManager {
     pub tabs: Vec<Tab>,
     pub active_tab_id: Option<String>,
     pub sidebar_width: f64,
     pub sidebar_position: SidebarPosition,
+    pub sidebar_mode: SidebarMode,
+    pub is_overlay_open: bool,
 }
 
 #[derive(Clone)]
@@ -40,6 +48,8 @@ impl TabManager {
             active_tab_id: None,
             sidebar_width: SIDEBAR_WIDTH,
             sidebar_position: SidebarPosition::Left,
+            sidebar_mode: SidebarMode::Docked,
+            is_overlay_open: false,
         }
     }
 }
@@ -74,13 +84,13 @@ impl TabManagerState {
         let tab_id = format!("tab_{}", Uuid::new_v4().simple());
         let webview_label = tab_id.clone();
 
-        let (current_width, current_pos) = {
+        let (current_width, current_pos, current_mode, is_open) = {
             let mgr = self.inner.lock();
-            (mgr.sidebar_width, mgr.sidebar_position)
+            (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open)
         };
 
         // 1. Calculate dynamic positioning with zero gap
-        let layout = BoundsCalculator::compute_layout(window, current_width, current_pos)?;
+        let layout = BoundsCalculator::compute_layout(window, current_width, current_pos, current_mode, is_open)?;
 
         // 2. Prepare anti-fingerprinting & cosmetic ad defuser script
         let defuser_script = CosmeticFilter::generate_defuser_script();
@@ -230,13 +240,13 @@ impl TabManagerState {
             .get_webview(target_tab_id)
             .ok_or_else(|| format!("Native WebView for '{target_tab_id}' not found"))?;
 
-        let (width, pos) = {
+        let (width, pos, mode, is_open) = {
             let mgr = self.inner.lock();
-            (mgr.sidebar_width, mgr.sidebar_position)
+            (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open)
         };
 
         if let Some(window) = app_handle.get_window("main") {
-            if let Ok(layout) = BoundsCalculator::compute_layout(&window, width, pos) {
+            if let Ok(layout) = BoundsCalculator::compute_layout(&window, width, pos, mode, is_open) {
                 let _ = target_wv.set_bounds(layout.content_rect);
             }
         }
