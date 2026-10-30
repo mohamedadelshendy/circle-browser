@@ -61,6 +61,7 @@ pub fn run() {
                 .min_inner_size(700.0, 500.0)
                 .theme(Some(tauri::Theme::Dark))
                 .decorations(false) // Frameless to render custom top bar
+                .transparent(true)
                 .build()?;
 
             let (init_width, init_pos, init_mode, is_open) = {

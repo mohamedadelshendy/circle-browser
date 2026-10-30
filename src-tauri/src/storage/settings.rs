@@ -45,3 +45,4 @@ pub fn save_settings(path: &PathBuf, settings: &AppSettings) {
         let _ = fs::write(path, content);
     }
 }
+
