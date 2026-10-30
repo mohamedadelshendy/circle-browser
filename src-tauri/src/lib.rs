@@ -12,7 +12,7 @@ use tauri::{
     Manager, WebviewUrl, WindowEvent,
 };
 
-use engine::{BoundsCalculator, SIDEBAR_WIDTH};
+use engine::BoundsCalculator;
 use ipc::commands::*;
 use privacy::{ShieldManager, ShieldManagerState};
 use tabs::TabManagerState;

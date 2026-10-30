@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use std::sync::atomic::{AtomicIsize, Ordering};
 
 pub static CHROME_HWND: AtomicIsize = AtomicIsize::new(0);
@@ -37,10 +38,10 @@ mod win32 {
 }
 
 /// Registers the chrome and topbar webview HWNDs right after they are created.
-pub fn register_ui_hwnds(window: &tauri::Window) {
+pub fn register_ui_hwnds(_window: &tauri::Window) {
     #[cfg(target_os = "windows")]
     {
-        if let Ok(parent) = window.hwnd() {
+        if let Ok(parent) = _window.hwnd() {
             let parent_ptr = parent.0 as *mut std::ffi::c_void;
             unsafe {
                 let first_child = win32::FindWindowExW(
@@ -68,8 +69,8 @@ pub fn register_ui_hwnds(window: &tauri::Window) {
 }
 
 /// Backward compatibility alias
-pub fn register_chrome_hwnd(window: &tauri::Window) {
-    register_ui_hwnds(window);
+pub fn register_chrome_hwnd(_window: &tauri::Window) {
+    register_ui_hwnds(_window);
 }
 
 /// Brings topbar to HWND_TOP so it renders on top of web pages.
@@ -115,10 +116,10 @@ pub fn bring_chrome_to_top() {
 }
 
 /// Pushes all tab webviews to HWND_BOTTOM so they are always the layer below chrome and topbar.
-pub fn send_tabs_to_bottom(window: &tauri::Window) {
+pub fn send_tabs_to_bottom(_window: &tauri::Window) {
     #[cfg(target_os = "windows")]
     {
-        if let Ok(parent) = window.hwnd() {
+        if let Ok(parent) = _window.hwnd() {
             let parent_ptr = parent.0 as *mut std::ffi::c_void;
             let chrome_ptr = CHROME_HWND.load(Ordering::SeqCst) as *mut std::ffi::c_void;
             let topbar_ptr = TOPBAR_HWND.load(Ordering::SeqCst) as *mut std::ffi::c_void;
