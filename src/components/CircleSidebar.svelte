@@ -27,6 +27,7 @@
   let sidebarPosition: "left" | "right" = initialPos;
   let isOverlayVisible = false;
   let hideTimeout: number | null = null;
+  let closeAnimationTimeout: number | null = null;
 
   let showMenu = false;
   let showShields = false;
@@ -153,24 +154,40 @@
   }
 
   // Auto-hide edge trigger hover handler: expands sticky floating sidebar
-  async function handleEdgeMouseEnter() {
+  async function handleMouseEnter() {
     if (sidebarMode !== "auto_hide") return;
     if (hideTimeout) {
       clearTimeout(hideTimeout);
       hideTimeout = null;
     }
-    await browserBridge.setSidebarOverlay(true);
-    isOverlayVisible = true;
+    if (closeAnimationTimeout) {
+      clearTimeout(closeAnimationTimeout);
+      closeAnimationTimeout = null;
+    }
+    if (!isOverlayVisible) {
+      await browserBridge.setSidebarOverlay(true);
+      isOverlayVisible = true;
+    }
   }
 
-  // Auto-hide leave handler: smoothly tucks floating sidebar off-screen
+  // Auto-hide leave handler: smooth grace period (400ms) before fading out
   function handleSidebarMouseLeave() {
     if (sidebarMode !== "auto_hide") return;
-    isOverlayVisible = false;
-    hideTimeout = window.setTimeout(async () => {
-      await browserBridge.setSidebarOverlay(false);
+    if (hideTimeout) {
+      clearTimeout(hideTimeout);
+    }
+    // Generous 400ms grace period so moving within menu or across items NEVER flickers
+    hideTimeout = window.setTimeout(() => {
+      isOverlayVisible = false;
+      // Wait for the 320ms smooth CSS slide/fade-out animation before resizing native webview
+      closeAnimationTimeout = window.setTimeout(async () => {
+        if (!isOverlayVisible) {
+          await browserBridge.setSidebarOverlay(false);
+        }
+        closeAnimationTimeout = null;
+      }, 340);
       hideTimeout = null;
-    }, 240);
+    }, 400);
   }
 
   // Toggle sidebar position between LEFT and RIGHT side of the browser
@@ -222,13 +239,14 @@
   class="sidebar-root-wrapper"
   role="region"
   aria-label="Circle Browser Sidebar"
-  on:mouseenter={handleEdgeMouseEnter}
+  on:mouseenter={handleMouseEnter}
+  on:mouseleave={handleSidebarMouseLeave}
 >
-  <!-- Invisible 12px Edge Trigger Strip when in Auto-Hide Mode -->
-  {#if sidebarMode === "auto_hide"}
+  <!-- Invisible Edge Trigger Strip when in Auto-Hide Mode and sidebar is hidden -->
+  {#if sidebarMode === "auto_hide" && !isOverlayVisible}
     <div
       class="edge-trigger-strip position-{sidebarPosition}"
-      on:mouseenter={handleEdgeMouseEnter}
+      on:mouseenter={handleMouseEnter}
       role="presentation"
       title="Hover to reveal Circle Sidebar"
     ></div>
@@ -237,8 +255,7 @@
   <!-- Sidebar Panel: Either Docked or Floating Sticky Overlay (Zen Image 2) -->
   <aside
     class="circle-sidebar {sidebarMode === 'docked' ? 'docked' : 'floating-overlay'} position-{sidebarPosition} {isOverlayVisible ? 'visible' : ''}"
-    on:mouseleave={handleSidebarMouseLeave}
-    on:mouseenter={handleEdgeMouseEnter}
+    on:mouseenter={handleMouseEnter}
   >
     <!-- Top Bar / Window Drag & Navigation Controls (Height: 42px) -->
     <header class="sidebar-top-bar" data-tauri-drag-region>
