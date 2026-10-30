@@ -40,6 +40,7 @@ pub fn run() {
             toggle_shields,
             expand_chrome,
             collapse_chrome,
+            set_sidebar_width,
             minimize_window,
             maximize_window,
             close_window,
@@ -55,16 +56,14 @@ pub fn run() {
                 .decorations(false) // Frameless to render custom top bar
                 .build()?;
 
-            let win_size = window.inner_size()?;
-            let scale = window.scale_factor()?;
-            let logical_size = win_size.to_logical::<f64>(scale);
+            let layout = BoundsCalculator::compute_layout(&window, None)?;
 
-            // 2. Attach UI Chrome Webview at the top
+            // 2. Attach UI Sidebar Webview on the left
             let chrome_builder = WebviewBuilder::new("chrome", WebviewUrl::App("index.html".into()));
             let _chrome_webview = window.add_child(
                 chrome_builder,
-                LogicalPosition::new(0.0, 0.0),
-                LogicalSize::new(logical_size.width, CHROME_BAR_HEIGHT),
+                layout.chrome_rect.position,
+                layout.chrome_rect.size,
             )?;
 
             // 3. Spawn initial default tab cleanly without lock contention

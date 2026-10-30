@@ -56,7 +56,11 @@ export const browserBridge = {
     return await invoke("toggle_shields", { tabId, enabled });
   },
 
-  // Dynamic Chrome Height (for popups / omnibox autocomplete)
+  // Dynamic Chrome / Sidebar Control
+  setSidebarWidth: async (width: number): Promise<void> => {
+    return await invoke("set_sidebar_width", { width });
+  },
+
   expandChrome: async (height: number = 320): Promise<void> => {
     return await invoke("expand_chrome", { height });
   },

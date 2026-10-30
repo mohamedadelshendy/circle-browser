@@ -147,27 +147,33 @@ pub fn toggle_shields(
     Ok(stats)
 }
 
-// Dynamic chrome height control
+// Sidebar width and layout control
 #[tauri::command]
-pub fn expand_chrome(app: AppHandle, height: f64) -> Result<(), String> {
+pub fn set_sidebar_width(app: AppHandle, width: f64) -> Result<(), String> {
     let window = app.get_window("main").ok_or("Main window not found")?;
-    let size = window.inner_size().map_err(|e| e.to_string())?;
-    let scale = window.scale_factor().map_err(|e| e.to_string())?;
-    let logical = size.to_logical::<f64>(scale);
-
+    let layout = crate::engine::BoundsCalculator::compute_layout(&window, Some(width))?;
     if let Some(chrome) = app.get_webview("chrome") {
-        let rect = Rect {
-            position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
-            size: Size::Logical(LogicalSize::new(logical.width, height)),
-        };
-        chrome.set_bounds(rect).map_err(|e| e.to_string())?;
+        let _ = chrome.set_bounds(layout.chrome_rect);
+    }
+    let state = app.state::<TabManagerState>();
+    if let Some(mgr) = state.inner.try_lock() {
+        if let Some(active_id) = &mgr.active_tab_id {
+            if let Some(wv) = app.get_webview(active_id) {
+                let _ = wv.set_bounds(layout.content_rect);
+            }
+        }
     }
     Ok(())
 }
 
 #[tauri::command]
-pub fn collapse_chrome(app: AppHandle) -> Result<(), String> {
-    expand_chrome(app, CHROME_BAR_HEIGHT)
+pub fn expand_chrome(_app: AppHandle, _height: f64) -> Result<(), String> {
+    Ok(())
+}
+
+#[tauri::command]
+pub fn collapse_chrome(_app: AppHandle) -> Result<(), String> {
+    Ok(())
 }
 
 // Window control commands for frameless chrome

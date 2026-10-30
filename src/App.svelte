@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import TabBar from "./components/TabBar.svelte";
-  import NavigationBar from "./components/NavigationBar.svelte";
+  import CircleSidebar from "./components/CircleSidebar.svelte";
   import { browserBridge } from "./lib/tauri-bridge";
   import type { Tab } from "./lib/types";
 
@@ -114,22 +113,16 @@
   }
 </script>
 
-<div class="browser-chrome">
-  <!-- Row 1: Draggable Tabs, Brand Logo & Window Controls -->
-  <TabBar
-    {tabs}
-    {activeTabId}
-    on:newTab={handleNewTab}
-    on:switchTab={(e) => handleSwitchTab(e.detail)}
-    on:closeTab={(e) => handleCloseTab(e.detail)}
-  />
-
-  <!-- Row 2: Nav Controls, Omnibox, Shields & Actions -->
-  <NavigationBar
-    {activeTab}
-    on:back={handleBack}
-    on:forward={handleForward}
-    on:reload={handleReload}
-    on:navigate={(e) => handleNavigate(e.detail)}
-  />
-</div>
+<!-- Circle Browser Vertical Sidebar Architecture -->
+<CircleSidebar
+  {tabs}
+  {activeTabId}
+  {activeTab}
+  on:newTab={handleNewTab}
+  on:switchTab={(e) => handleSwitchTab(e.detail)}
+  on:closeTab={(e) => handleCloseTab(e.detail)}
+  on:navigate={(e) => handleNavigate(e.detail)}
+  on:back={handleBack}
+  on:forward={handleForward}
+  on:reload={handleReload}
+/>

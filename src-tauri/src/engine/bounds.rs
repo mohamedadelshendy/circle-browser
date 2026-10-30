@@ -1,6 +1,8 @@
 use tauri::{LogicalPosition, LogicalSize, Position, Rect, Size, Window};
 
-/// Fixed height of the custom browser chrome bar (40px tab strip + 48px nav toolbar = 88px)
+/// Default width of the vertical sidebar (240px)
+pub const SIDEBAR_WIDTH: f64 = 240.0;
+pub const SIDEBAR_COMPACT_WIDTH: f64 = 56.0;
 pub const CHROME_BAR_HEIGHT: f64 = 88.0;
 
 #[derive(Debug, Clone, Copy)]
@@ -12,15 +14,11 @@ pub struct LayoutBounds {
 pub struct BoundsCalculator;
 
 impl BoundsCalculator {
-    /// Computes the exact logical bounds for the chrome bar and the active tab content
-    /// based on the parent window's current dimensions and scale factor.
-    ///
-    /// The coordinates are calculated relative to the parent window's client viewport:
-    /// - Chrome bar: fixed at (x: 0, y: 0) with height `CHROME_BAR_HEIGHT` and full window width.
-    /// - Content WebView: positioned at (x: 0, y: CHROME_BAR_HEIGHT) spanning the remaining height.
+    /// Computes the exact logical bounds for the vertical sidebar (chrome)
+    /// and the active tab content webview.
     pub fn compute_layout(
         window: &Window,
-        custom_chrome_height: Option<f64>,
+        custom_sidebar_width: Option<f64>,
     ) -> Result<LayoutBounds, String> {
         let physical_size = window
             .inner_size()
@@ -31,17 +29,23 @@ impl BoundsCalculator {
             .map_err(|e| format!("Failed to retrieve scale factor: {e}"))?;
 
         let logical_size = physical_size.to_logical::<f64>(scale_factor);
-        let chrome_height = custom_chrome_height.unwrap_or(CHROME_BAR_HEIGHT);
+        let sidebar_width = custom_sidebar_width.unwrap_or(SIDEBAR_WIDTH);
 
+        // Sidebar covers left side, full height (0.0, 0.0) -> (sidebar_width, logical_size.height)
         let chrome_rect = Rect {
             position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
-            size: Size::Logical(LogicalSize::new(logical_size.width, chrome_height)),
+            size: Size::Logical(LogicalSize::new(sidebar_width, logical_size.height)),
         };
 
-        let content_height = (logical_size.height - chrome_height).max(0.0);
+        // Floating content canvas sits cleanly on the right with subtle margins
+        let margin_x = 4.0;
+        let margin_y = 6.0;
+        let content_width = (logical_size.width - sidebar_width - margin_x * 2.0).max(0.0);
+        let content_height = (logical_size.height - margin_y * 2.0).max(0.0);
+
         let content_rect = Rect {
-            position: Position::Logical(LogicalPosition::new(0.0, chrome_height)),
-            size: Size::Logical(LogicalSize::new(logical_size.width, content_height)),
+            position: Position::Logical(LogicalPosition::new(sidebar_width + margin_x, margin_y)),
+            size: Size::Logical(LogicalSize::new(content_width, content_height)),
         };
 
         Ok(LayoutBounds {
@@ -50,4 +54,3 @@ impl BoundsCalculator {
         })
     }
 }
-
