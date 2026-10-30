@@ -20,8 +20,11 @@
   }>();
 
   // Sidebar modes & position: left vs right, docked vs auto_hide
-  let sidebarMode: "docked" | "auto_hide" = "docked";
-  let sidebarPosition: "left" | "right" = "left";
+  const initialMode = (typeof localStorage !== "undefined" && (localStorage.getItem("circle_sidebar_mode") as "docked" | "auto_hide")) || "docked";
+  const initialPos = (typeof localStorage !== "undefined" && (localStorage.getItem("circle_sidebar_position") as "left" | "right")) || "left";
+
+  let sidebarMode: "docked" | "auto_hide" = initialMode;
+  let sidebarPosition: "left" | "right" = initialPos;
   let isOverlayVisible = false;
   let hideTimeout: number | null = null;
 

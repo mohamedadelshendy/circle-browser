@@ -218,6 +218,13 @@ pub fn set_sidebar_mode(
     crate::engine::send_tabs_to_bottom(&window);
     crate::engine::bring_chrome_to_top();
 
+    let settings_path = crate::storage::get_settings_path(None);
+    crate::storage::save_settings(&settings_path, &crate::storage::AppSettings {
+        sidebar_mode: new_mode,
+        sidebar_position: pos,
+        sidebar_width: width,
+    });
+
     let res = match new_mode {
         SidebarMode::Docked => "docked",
         SidebarMode::AutoHide => "auto_hide",
@@ -305,6 +312,13 @@ pub fn toggle_sidebar_position(
     crate::engine::send_tabs_to_bottom(&window);
     crate::engine::bring_chrome_to_top();
 
+    let settings_path = crate::storage::get_settings_path(None);
+    crate::storage::save_settings(&settings_path, &crate::storage::AppSettings {
+        sidebar_mode: mode,
+        sidebar_position: new_pos,
+        sidebar_width: width,
+    });
+
     let pos_str = match new_pos {
         SidebarPosition::Left => "left",
         SidebarPosition::Right => "right",
@@ -349,6 +363,13 @@ pub fn set_sidebar_position(
 
     crate::engine::send_tabs_to_bottom(&window);
     crate::engine::bring_chrome_to_top();
+
+    let settings_path = crate::storage::get_settings_path(None);
+    crate::storage::save_settings(&settings_path, &crate::storage::AppSettings {
+        sidebar_mode: mode,
+        sidebar_position: target_pos,
+        sidebar_width: width,
+    });
 
     let pos_str = match pos {
         SidebarPosition::Left => "left",

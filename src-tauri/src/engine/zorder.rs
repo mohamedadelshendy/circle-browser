@@ -114,3 +114,4 @@ pub fn send_tabs_to_bottom(window: &tauri::Window) {
         }
     }
 }
+

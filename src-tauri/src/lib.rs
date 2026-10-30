@@ -21,7 +21,9 @@ pub fn run() {
     let shield_manager = Arc::new(Mutex::new(ShieldManager::new()));
     let shield_manager_state = ShieldManagerState(shield_manager.clone());
 
-    let tab_manager_state = TabManagerState::new(shield_manager.clone());
+    let settings_path = storage::get_settings_path(None);
+    let saved_settings = storage::load_settings(&settings_path);
+    let tab_manager_state = TabManagerState::new(shield_manager.clone(), saved_settings);
 
     tauri::Builder::default()
         .manage(tab_manager_state.clone())
@@ -57,6 +59,7 @@ pub fn run() {
                 .title("Circle Browser")
                 .inner_size(1280.0, 800.0)
                 .min_inner_size(700.0, 500.0)
+                .theme(Some(tauri::Theme::Dark))
                 .decorations(false) // Frameless to render custom top bar
                 .build()?;
 
@@ -66,8 +69,9 @@ pub fn run() {
             };
             let layout = BoundsCalculator::compute_layout(&window, init_width, init_pos, init_mode, is_open)?;
 
-            // 2. Attach UI Sidebar Webview
-            let chrome_builder = WebviewBuilder::new("chrome", WebviewUrl::App("index.html".into()));
+            // 2. Attach UI Sidebar Webview with transparency so only the floating card renders
+            let chrome_builder = WebviewBuilder::new("chrome", WebviewUrl::App("index.html".into()))
+                .transparent(true);
             let _chrome_webview = window.add_child(
                 chrome_builder,
                 layout.chrome_rect.position,

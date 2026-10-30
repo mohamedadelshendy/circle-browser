@@ -52,12 +52,23 @@ impl TabManager {
             is_overlay_open: false,
         }
     }
+
+    pub fn with_settings(settings: crate::storage::AppSettings) -> Self {
+        Self {
+            tabs: Vec::new(),
+            active_tab_id: None,
+            sidebar_width: settings.sidebar_width,
+            sidebar_position: settings.sidebar_position,
+            sidebar_mode: settings.sidebar_mode,
+            is_overlay_open: false,
+        }
+    }
 }
 
 impl TabManagerState {
-    pub fn new(shield_manager: Arc<Mutex<ShieldManager>>) -> Self {
+    pub fn new(shield_manager: Arc<Mutex<ShieldManager>>, settings: crate::storage::AppSettings) -> Self {
         Self {
-            inner: Arc::new(Mutex::new(TabManager::new())),
+            inner: Arc::new(Mutex::new(TabManager::with_settings(settings))),
             shield_manager,
         }
     }
