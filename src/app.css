@@ -2,42 +2,34 @@
   /* Layout Dimensions */
   --sidebar-width-expanded: 240px;
   --sidebar-width-compact: 56px;
-  --sidebar-min-width: 180px;
-  --sidebar-max-width: 380px;
 
-  /* Radii & Spacing */
+  /* Color Palette strictly matching user specification: #323232 */
+  --bg-sidebar: #323232;
+  --bg-sidebar-darker: #242424;
+  --bg-canvas: #383838;
+  --bg-search: #252525;
+  --tab-active-bg: #424242;
+  --item-hover: rgba(255, 255, 255, 0.09);
+  --item-active: rgba(255, 255, 255, 0.15);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --border-divider: rgba(255, 255, 255, 0.08);
+
+  /* Typography & Accents */
+  --text-primary: #f4f4f5;
+  --text-secondary: #c0c0c6;
+  --text-muted: #8e8e94;
+  --accent-color: #3b82f6;
+  --accent-glow: rgba(59, 130, 246, 0.4);
+
+  /* Radii */
   --border-radius-outer: 12px;
   --border-radius-item: 8px;
   --border-radius-button: 6px;
-  --sidebar-padding: 8px;
   --item-height: 36px;
-  --pinned-tab-size: 38px;
-  --gap: 4px;
 
-  /* Dark Theme Palette matching screenshot */
-  --bg-app: #121214;
-  --bg-sidebar: #18181b;
-  --bg-sidebar-floating: rgba(24, 24, 27, 0.85);
-  --bg-webview: #000000;
-
-  /* Interaction & State Colors */
-  --item-hover: rgba(255, 255, 255, 0.06);
-  --item-active: rgba(255, 255, 255, 0.12);
-  --tab-active-bg: #27272a;
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-divider: rgba(255, 255, 255, 0.05);
-
-  /* Typography & Icons */
-  --text-primary: #f4f4f5;
-  --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
-  --accent-color: #3b82f6;
-  --accent-glow: rgba(59, 130, 246, 0.35);
-
-  /* Animation Curves & Timings */
-  --transition-duration: 250ms;
+  /* Animation Curves */
+  --transition-duration: 200ms;
   --transition-timing: cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 * {
@@ -59,7 +51,7 @@ body, html {
 }
 
 /* ==========================================================================
-   Circle Browser Sidebar Container
+   Circle Browser Sidebar Container (#323232)
    ========================================================================== */
 .circle-sidebar {
   width: 100%;
@@ -70,8 +62,12 @@ body, html {
   border-right: 1px solid var(--border-color);
   position: relative;
   overflow: hidden;
-  transition: width var(--transition-duration) var(--transition-timing);
   will-change: width;
+}
+
+.circle-sidebar.position-right {
+  border-right: none;
+  border-left: 1px solid var(--border-color);
 }
 
 /* ==========================================================================
@@ -85,6 +81,7 @@ body, html {
   padding: 0 8px;
   flex-shrink: 0;
   -webkit-app-region: drag;
+  background-color: var(--bg-sidebar);
 }
 
 .top-bar-group {
@@ -131,6 +128,7 @@ body, html {
   padding: 4px 8px 10px 8px;
   position: relative;
   flex-shrink: 0;
+  background-color: var(--bg-sidebar);
 }
 
 .search-box {
@@ -138,7 +136,7 @@ body, html {
   height: 34px;
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-search);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-item);
   padding: 0 10px;
@@ -147,7 +145,7 @@ body, html {
 }
 
 .search-box.focused {
-  background: rgba(255, 255, 255, 0.08);
+  background: #1e1e1e;
   border-color: var(--accent-color);
   box-shadow: 0 0 0 2px var(--accent-glow);
 }
@@ -186,7 +184,7 @@ body, html {
   top: 48px;
   left: 8px;
   right: 8px;
-  background: #202024;
+  background: #252525;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius-item);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
@@ -206,7 +204,7 @@ body, html {
 
 .suggestion-item:hover,
 .suggestion-item.selected {
-  background: #2b2b30;
+  background: #363636;
   color: #ffffff;
 }
 
@@ -302,7 +300,7 @@ body, html {
 }
 
 .sidebar-tabs-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 4px;
 }
 
@@ -398,12 +396,12 @@ body, html {
 }
 
 .tab-close-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.18);
   color: #ffffff;
 }
 
 /* ==========================================================================
-   Sidebar Bottom Toolbar / Footer
+   Sidebar Bottom Toolbar / Footer (Height: 42px)
    ========================================================================== */
 .sidebar-footer {
   height: 42px;
@@ -413,6 +411,7 @@ body, html {
   justify-content: space-between;
   border-top: 1px solid var(--border-divider);
   flex-shrink: 0;
+  background-color: var(--bg-sidebar);
 }
 
 .footer-group {

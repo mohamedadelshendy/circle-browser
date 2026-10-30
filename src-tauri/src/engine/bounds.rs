@@ -1,4 +1,5 @@
 use tauri::{LogicalPosition, LogicalSize, Position, Rect, Size, Window};
+use crate::tabs::SidebarPosition;
 
 /// Default width of the vertical sidebar (240px)
 pub const SIDEBAR_WIDTH: f64 = 240.0;
@@ -14,11 +15,12 @@ pub struct LayoutBounds {
 pub struct BoundsCalculator;
 
 impl BoundsCalculator {
-    /// Computes the exact logical bounds for the vertical sidebar (chrome)
-    /// and the active tab content webview.
+    /// Computes exact pixel-perfect logical bounds for the sidebar (chrome)
+    /// and the active tab content WebView with zero gaps to prevent mouse drop issues.
     pub fn compute_layout(
         window: &Window,
-        custom_sidebar_width: Option<f64>,
+        sidebar_width: f64,
+        position: SidebarPosition,
     ) -> Result<LayoutBounds, String> {
         let physical_size = window
             .inner_size()
@@ -29,28 +31,46 @@ impl BoundsCalculator {
             .map_err(|e| format!("Failed to retrieve scale factor: {e}"))?;
 
         let logical_size = physical_size.to_logical::<f64>(scale_factor);
-        let sidebar_width = custom_sidebar_width.unwrap_or(SIDEBAR_WIDTH);
+        let clamped_width = sidebar_width.max(0.0).min(logical_size.width);
+        let content_width = (logical_size.width - clamped_width).max(0.0);
 
-        // Sidebar covers left side, full height (0.0, 0.0) -> (sidebar_width, logical_size.height)
-        let chrome_rect = Rect {
-            position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
-            size: Size::Logical(LogicalSize::new(sidebar_width, logical_size.height)),
-        };
+        match position {
+            SidebarPosition::Left => {
+                // Sidebar pinned to the left edge, full height
+                let chrome_rect = Rect {
+                    position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
+                    size: Size::Logical(LogicalSize::new(clamped_width, logical_size.height)),
+                };
 
-        // Floating content canvas sits cleanly on the right with subtle margins
-        let margin_x = 4.0;
-        let margin_y = 6.0;
-        let content_width = (logical_size.width - sidebar_width - margin_x * 2.0).max(0.0);
-        let content_height = (logical_size.height - margin_y * 2.0).max(0.0);
+                // Content WebView fills the remaining right side completely (zero dead-zone gaps)
+                let content_rect = Rect {
+                    position: Position::Logical(LogicalPosition::new(clamped_width, 0.0)),
+                    size: Size::Logical(LogicalSize::new(content_width, logical_size.height)),
+                };
 
-        let content_rect = Rect {
-            position: Position::Logical(LogicalPosition::new(sidebar_width + margin_x, margin_y)),
-            size: Size::Logical(LogicalSize::new(content_width, content_height)),
-        };
+                Ok(LayoutBounds {
+                    chrome_rect,
+                    content_rect,
+                })
+            }
+            SidebarPosition::Right => {
+                // Content WebView fills the left side
+                let content_rect = Rect {
+                    position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
+                    size: Size::Logical(LogicalSize::new(content_width, logical_size.height)),
+                };
 
-        Ok(LayoutBounds {
-            chrome_rect,
-            content_rect,
-        })
+                // Sidebar pinned to the right edge
+                let chrome_rect = Rect {
+                    position: Position::Logical(LogicalPosition::new(content_width, 0.0)),
+                    size: Size::Logical(LogicalSize::new(clamped_width, logical_size.height)),
+                };
+
+                Ok(LayoutBounds {
+                    chrome_rect,
+                    content_rect,
+                })
+            }
+        }
     }
 }

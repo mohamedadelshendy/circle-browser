@@ -149,21 +149,76 @@ pub fn toggle_shields(
 
 // Sidebar width and layout control
 #[tauri::command]
-pub fn set_sidebar_width(app: AppHandle, width: f64) -> Result<(), String> {
+pub fn set_sidebar_width(
+    app: AppHandle,
+    state: State<'_, TabManagerState>,
+    width: f64,
+) -> Result<(), String> {
     let window = app.get_window("main").ok_or("Main window not found")?;
-    let layout = crate::engine::BoundsCalculator::compute_layout(&window, Some(width))?;
+
+    let position = {
+        let mut mgr = state.inner.lock();
+        mgr.sidebar_width = width;
+        mgr.sidebar_position
+    };
+
+    let layout = crate::engine::BoundsCalculator::compute_layout(&window, width, position)?;
     if let Some(chrome) = app.get_webview("chrome") {
         let _ = chrome.set_bounds(layout.chrome_rect);
     }
-    let state = app.state::<TabManagerState>();
-    if let Some(mgr) = state.inner.try_lock() {
-        if let Some(active_id) = &mgr.active_tab_id {
-            if let Some(wv) = app.get_webview(active_id) {
-                let _ = wv.set_bounds(layout.content_rect);
-            }
+
+    let active_id = {
+        let mgr = state.inner.lock();
+        mgr.active_tab_id.clone()
+    };
+
+    if let Some(tab_id) = active_id {
+        if let Some(wv) = app.get_webview(&tab_id) {
+            let _ = wv.set_bounds(layout.content_rect);
+            let _ = wv.set_focus();
         }
     }
     Ok(())
+}
+
+#[tauri::command]
+pub fn toggle_sidebar_position(
+    app: AppHandle,
+    state: State<'_, TabManagerState>,
+) -> Result<String, String> {
+    let window = app.get_window("main").ok_or("Main window not found")?;
+
+    let (width, new_pos) = {
+        let mut mgr = state.inner.lock();
+        mgr.sidebar_position = match mgr.sidebar_position {
+            crate::tabs::SidebarPosition::Left => crate::tabs::SidebarPosition::Right,
+            crate::tabs::SidebarPosition::Right => crate::tabs::SidebarPosition::Left,
+        };
+        (mgr.sidebar_width, mgr.sidebar_position)
+    };
+
+    let layout = crate::engine::BoundsCalculator::compute_layout(&window, width, new_pos)?;
+    if let Some(chrome) = app.get_webview("chrome") {
+        let _ = chrome.set_bounds(layout.chrome_rect);
+    }
+
+    let active_id = {
+        let mgr = state.inner.lock();
+        mgr.active_tab_id.clone()
+    };
+
+    if let Some(tab_id) = active_id {
+        if let Some(wv) = app.get_webview(&tab_id) {
+            let _ = wv.set_bounds(layout.content_rect);
+            let _ = wv.set_focus();
+        }
+    }
+
+    let pos_str = match new_pos {
+        crate::tabs::SidebarPosition::Left => "left",
+        crate::tabs::SidebarPosition::Right => "right",
+    };
+    Ok(pos_str.to_string())
 }
 
 #[tauri::command]

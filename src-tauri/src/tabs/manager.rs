@@ -1,21 +1,30 @@
 use std::sync::Arc;
 use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 use tauri::{
     webview::{PageLoadEvent, WebviewBuilder},
     AppHandle, Emitter, Manager, Url, WebviewUrl, Window,
 };
 use uuid::Uuid;
 
-use crate::engine::{BoundsCalculator, NavigationResolver};
+use crate::engine::{BoundsCalculator, NavigationResolver, SIDEBAR_WIDTH};
 use crate::ipc::events::{
     NavigationEventPayload, ShieldStatsPayload, TabLoadingPayload, TabStateChangedPayload,
 };
 use crate::privacy::{CosmeticFilter, ShieldManager};
 use crate::tabs::tab::Tab;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SidebarPosition {
+    Left,
+    Right,
+}
+
 pub struct TabManager {
     pub tabs: Vec<Tab>,
     pub active_tab_id: Option<String>,
+    pub sidebar_width: f64,
+    pub sidebar_position: SidebarPosition,
 }
 
 #[derive(Clone)]
@@ -29,6 +38,8 @@ impl TabManager {
         Self {
             tabs: Vec::new(),
             active_tab_id: None,
+            sidebar_width: SIDEBAR_WIDTH,
+            sidebar_position: SidebarPosition::Left,
         }
     }
 }
@@ -42,7 +53,6 @@ impl TabManagerState {
     }
 
     /// Spawns a child WebView cleanly WITHOUT holding any Mutex locks during native OS calls.
-    /// This completely avoids Win32 / macOS message loop deadlocks.
     pub fn create_tab(
         &self,
         app_handle: &AppHandle,
@@ -64,8 +74,13 @@ impl TabManagerState {
         let tab_id = format!("tab_{}", Uuid::new_v4().simple());
         let webview_label = tab_id.clone();
 
-        // 1. Calculate dynamic positioning
-        let layout = BoundsCalculator::compute_layout(window, None)?;
+        let (current_width, current_pos) = {
+            let mgr = self.inner.lock();
+            (mgr.sidebar_width, mgr.sidebar_position)
+        };
+
+        // 1. Calculate dynamic positioning with zero gap
+        let layout = BoundsCalculator::compute_layout(window, current_width, current_pos)?;
 
         // 2. Prepare anti-fingerprinting & cosmetic ad defuser script
         let defuser_script = CosmeticFilter::generate_defuser_script();
@@ -146,13 +161,14 @@ impl TabManagerState {
             prev
         };
 
-        // 6. Hide previous and show new WebView without holding lock
+        // 6. Hide previous and show new WebView + ensure it has focus
         if let Some(prev_id) = prev_active_id {
             if let Some(prev_wv) = app_handle.get_webview(&prev_id) {
                 let _ = prev_wv.hide();
             }
         }
         let _ = new_webview.show();
+        let _ = new_webview.set_focus();
 
         // 7. Initialize shield stats
         {
@@ -214,13 +230,19 @@ impl TabManagerState {
             .get_webview(target_tab_id)
             .ok_or_else(|| format!("Native WebView for '{target_tab_id}' not found"))?;
 
+        let (width, pos) = {
+            let mgr = self.inner.lock();
+            (mgr.sidebar_width, mgr.sidebar_position)
+        };
+
         if let Some(window) = app_handle.get_window("main") {
-            if let Ok(layout) = BoundsCalculator::compute_layout(&window, None) {
+            if let Ok(layout) = BoundsCalculator::compute_layout(&window, width, pos) {
                 let _ = target_wv.set_bounds(layout.content_rect);
             }
         }
 
         let _ = target_wv.show();
+        let _ = target_wv.set_focus();
 
         // 3. Update active tab id
         let (all_tabs, active_id) = {
@@ -258,12 +280,7 @@ impl TabManagerState {
     }
 
     /// Closes a tab without holding locks during OS destroy calls.
-    pub fn close_tab(
-        &self,
-        app_handle: &AppHandle,
-        window: &Window,
-        tab_id: &str,
-    ) -> Result<Option<String>, String> {
+    pub fn close_tab(&self, app_handle: &AppHandle, window: &Window, tab_id: &str) -> Result<Option<String>, String> {
         let (next_active_id, should_spawn_new) = {
             let mut mgr = self.inner.lock();
             let index = mgr
@@ -335,6 +352,7 @@ impl TabManagerState {
             let parsed = Url::parse(&resolved_url).map_err(|e| format!("Failed to parse URL: {e}"))?;
             wv.navigate(parsed).map_err(|e| format!("Navigation failed: {e}"))?;
         }
+        let _ = wv.set_focus();
 
         let (all_tabs, active_id) = {
             let mut mgr = self.inner.lock();

@@ -19,8 +19,9 @@
     reload: void;
   }>();
 
-  // Sidebar modes: expanded (240px) vs compact (56px)
+  // Sidebar modes & position: left vs right, expanded (240px) vs compact (56px)
   let isCompact = false;
+  let sidebarPosition: "left" | "right" = "left";
   let showMenu = false;
   let showShields = false;
 
@@ -113,11 +114,17 @@
     }
   }
 
-  // Toggle compact / expanded sidebar
+  // Toggle compact / expanded sidebar (width going left and right)
   async function toggleCompactMode() {
     isCompact = !isCompact;
     const targetWidth = isCompact ? 56.0 : 240.0;
     await browserBridge.setSidebarWidth(targetWidth);
+  }
+
+  // Toggle sidebar position between LEFT and RIGHT side of the browser
+  async function handleToggleSidebarPosition() {
+    const newPos = await browserBridge.toggleSidebarPosition();
+    sidebarPosition = newPos === "right" ? "right" : "left";
   }
 
   // Drag and drop tab reordering
@@ -158,10 +165,10 @@
   }
 </script>
 
-<aside class="circle-sidebar {isCompact ? 'compact' : ''}">
+<aside class="circle-sidebar {isCompact ? 'compact' : ''} position-{sidebarPosition}">
   <!-- Top Bar / Window Drag & Navigation Controls (Height: 42px) -->
   <header class="sidebar-top-bar" data-tauri-drag-region>
-    <!-- Left Actions: Menu, Panels toggle, Fullscreen/Maximize -->
+    <!-- Left Actions: Menu, Position Toggle (Left/Right), Maximize -->
     <div class="top-bar-group">
       <!-- 3-dots Menu -->
       <button
@@ -178,25 +185,29 @@
         </svg>
       </button>
 
-      <!-- Sidebar Layout Toggle -->
+      <!-- Sidebar Position Left/Right Toggle ([|]) -->
       <button
         type="button"
         class="icon-btn"
-        title="Toggle Sidebar (Ctrl+B)"
-        on:click={toggleCompactMode}
-        aria-label="Toggle Sidebar"
+        title="Switch sidebar to {sidebarPosition === 'left' ? 'Right' : 'Left'} side"
+        on:click={handleToggleSidebarPosition}
+        aria-label="Toggle Sidebar Position"
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-          <line x1="9" y1="3" x2="9" y2="21"/>
+          {#if sidebarPosition === 'left'}
+            <line x1="9" y1="3" x2="9" y2="21"/>
+          {:else}
+            <line x1="15" y1="3" x2="15" y2="21"/>
+          {/if}
         </svg>
       </button>
 
-      <!-- Fullscreen / Maximize Window -->
+      <!-- Maximize / Fullscreen Window -->
       <button
         type="button"
         class="icon-btn"
-        title="Maximize / Fullscreen"
+        title="Maximize / Restore window"
         on:click={() => browserBridge.maximizeWindow()}
         aria-label="Maximize"
       >
@@ -432,7 +443,7 @@
       </button>
     </div>
 
-    <!-- Right Footer Controls: + New Space, Collapse Toggle -->
+    <!-- Right Footer Controls: + New Space, Collapse Toggle (width go left and right) -->
     <div class="footer-group">
       <!-- New Space (+) Button -->
       <button

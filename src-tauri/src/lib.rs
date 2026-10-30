@@ -9,10 +9,10 @@ use parking_lot::Mutex;
 use tauri::{
     webview::WebviewBuilder,
     window::WindowBuilder,
-    LogicalPosition, LogicalSize, Manager, WebviewUrl, WindowEvent,
+    Manager, WebviewUrl, WindowEvent,
 };
 
-use engine::{BoundsCalculator, CHROME_BAR_HEIGHT};
+use engine::{BoundsCalculator, SIDEBAR_WIDTH};
 use ipc::commands::*;
 use privacy::{ShieldManager, ShieldManagerState};
 use tabs::TabManagerState;
@@ -41,6 +41,7 @@ pub fn run() {
             expand_chrome,
             collapse_chrome,
             set_sidebar_width,
+            toggle_sidebar_position,
             minimize_window,
             maximize_window,
             close_window,
@@ -56,9 +57,13 @@ pub fn run() {
                 .decorations(false) // Frameless to render custom top bar
                 .build()?;
 
-            let layout = BoundsCalculator::compute_layout(&window, None)?;
+            let (init_width, init_pos) = {
+                let mgr = tab_manager_state.inner.lock();
+                (mgr.sidebar_width, mgr.sidebar_position)
+            };
+            let layout = BoundsCalculator::compute_layout(&window, init_width, init_pos)?;
 
-            // 2. Attach UI Sidebar Webview on the left
+            // 2. Attach UI Sidebar Webview
             let chrome_builder = WebviewBuilder::new("chrome", WebviewUrl::App("index.html".into()));
             let _chrome_webview = window.add_child(
                 chrome_builder,
@@ -69,24 +74,39 @@ pub fn run() {
             // 3. Spawn initial default tab cleanly without lock contention
             let _ = tab_manager_state.create_tab(&app_handle, &window, None);
 
-            // 4. Attach window resize listener using try_lock to prevent any Win32 message-loop deadlocks
+            // 4. Attach window resize listener without redundant relayout loops
             let handle_for_resize = app_handle.clone();
             let tab_mgr_for_resize = tab_manager_state.clone();
+            let last_physical_size = Arc::new(Mutex::new(tauri::PhysicalSize::new(0, 0)));
 
             window.on_window_event(move |event| {
-                if let WindowEvent::Resized(_) = event {
+                if let WindowEvent::Resized(new_size) = event {
+                    {
+                        let mut last = last_physical_size.lock();
+                        if last.width == new_size.width && last.height == new_size.height {
+                            return;
+                        }
+                        *last = *new_size;
+                    }
+
                     if let Some(main_win) = handle_for_resize.get_window("main") {
-                        if let Ok(layout) = BoundsCalculator::compute_layout(&main_win, None) {
+                        let (width, pos, active_id) = {
+                            if let Some(mgr) = tab_mgr_for_resize.inner.try_lock() {
+                                (mgr.sidebar_width, mgr.sidebar_position, mgr.active_tab_id.clone())
+                            } else {
+                                (SIDEBAR_WIDTH, crate::tabs::SidebarPosition::Left, None)
+                            }
+                        };
+
+                        if let Ok(layout) = BoundsCalculator::compute_layout(&main_win, width, pos) {
                             if let Some(chrome) = handle_for_resize.get_webview("chrome") {
                                 let _ = chrome.set_bounds(layout.chrome_rect);
                             }
 
-                            // Use try_lock to guarantee zero deadlock in Win32 message pump
-                            if let Some(mgr) = tab_mgr_for_resize.inner.try_lock() {
-                                if let Some(active_id) = &mgr.active_tab_id {
-                                    if let Some(active_wv) = handle_for_resize.get_webview(active_id) {
-                                        let _ = active_wv.set_bounds(layout.content_rect);
-                                    }
+                            if let Some(tab_id) = active_id {
+                                if let Some(active_wv) = handle_for_resize.get_webview(&tab_id) {
+                                    let _ = active_wv.set_bounds(layout.content_rect);
+                                    let _ = active_wv.set_focus();
                                 }
                             }
                         }

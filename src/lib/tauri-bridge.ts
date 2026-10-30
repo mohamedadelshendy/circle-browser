@@ -61,6 +61,10 @@ export const browserBridge = {
     return await invoke("set_sidebar_width", { width });
   },
 
+  toggleSidebarPosition: async (): Promise<string> => {
+    return await invoke("toggle_sidebar_position");
+  },
+
   expandChrome: async (height: number = 320): Promise<void> => {
     return await invoke("expand_chrome", { height });
   },

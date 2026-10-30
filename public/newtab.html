@@ -6,16 +6,16 @@
   <title>New tab</title>
   <style>
     :root {
-      --bg-gradient: radial-gradient(circle at 50% 45%, #232230 0%, #16151c 60%, #101014 100%);
-      --search-bg: rgba(30, 30, 36, 0.85);
-      --search-border: rgba(255, 255, 255, 0.09);
-      --search-border-focus: rgba(99, 102, 241, 0.55);
-      --search-glow: rgba(99, 102, 241, 0.25);
+      --bg-gradient: radial-gradient(circle at 50% 45%, #3a3a3a 0%, #303030 65%, #282828 100%);
+      --search-bg: #222222;
+      --search-border: rgba(255, 255, 255, 0.12);
+      --search-border-focus: #3b82f6;
+      --search-glow: rgba(59, 130, 246, 0.35);
       --text-main: #f4f4f5;
-      --text-muted: #a1a1aa;
-      --text-placeholder: #71717a;
-      --tile-bg: rgba(255, 255, 255, 0.04);
-      --tile-hover: rgba(255, 255, 255, 0.09);
+      --text-muted: #b0b0b5;
+      --text-placeholder: #808085;
+      --tile-bg: rgba(255, 255, 255, 0.06);
+      --tile-hover: rgba(255, 255, 255, 0.12);
     }
 
     * {
@@ -37,24 +37,23 @@
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      padding-top: 14vh;
-      border-radius: 12px;
+      padding-top: 15vh;
     }
 
     .canvas-container {
       width: 100%;
-      max-width: 600px;
+      max-width: 620px;
       display: flex;
       flex-direction: column;
       align-items: center;
       padding: 0 16px;
-      animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     @keyframes fadeIn {
       from {
         opacity: 0;
-        transform: translateY(-6px);
+        transform: translateY(-8px);
       }
       to {
         opacity: 1;
@@ -72,14 +71,14 @@
       display: flex;
       align-items: center;
       padding: 0 16px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
       transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
     }
 
     .search-box:focus-within {
-      background: rgba(36, 36, 44, 0.95);
+      background: #1c1c1c;
       border-color: var(--search-border-focus);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65), 0 0 0 2px var(--search-glow);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 0 2px var(--search-glow);
     }
 
     .search-icon {
@@ -109,7 +108,7 @@
       color: var(--text-placeholder);
     }
 
-    /* Quick Shortcuts Grid */
+    /* Quick Site Shortcuts */
     .shortcuts-grid {
       display: flex;
       align-items: center;
@@ -125,7 +124,7 @@
       gap: 8px;
       padding: 8px 14px;
       background: var(--tile-bg);
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.06);
       border-radius: 10px;
       color: var(--text-muted);
       font-size: 12.5px;
@@ -171,7 +170,7 @@
       />
     </form>
 
-    <!-- Quick Site Shortcuts -->
+    <!-- Quick Shortcuts Grid -->
     <div class="shortcuts-grid">
       <a class="shortcut-pill" href="https://www.google.com">
         <span class="shortcut-icon">🌐</span>
