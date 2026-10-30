@@ -179,6 +179,8 @@ impl TabManagerState {
         }
         let _ = new_webview.show();
         let _ = new_webview.set_focus();
+        crate::engine::send_tabs_to_bottom(window);
+        crate::engine::bring_chrome_to_top();
 
         // 7. Initialize shield stats
         {
@@ -253,6 +255,10 @@ impl TabManagerState {
 
         let _ = target_wv.show();
         let _ = target_wv.set_focus();
+        if let Some(window) = app_handle.get_window("main") {
+            crate::engine::send_tabs_to_bottom(&window);
+            crate::engine::bring_chrome_to_top();
+        }
 
         // 3. Update active tab id
         let (all_tabs, active_id) = {

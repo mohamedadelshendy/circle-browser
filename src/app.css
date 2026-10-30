@@ -45,7 +45,7 @@ body, html {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 13px;
   color: var(--text-primary);
-  background: transparent;
+  background-color: var(--bg-sidebar);
   user-select: none;
   -webkit-user-select: none;
 }

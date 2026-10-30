@@ -73,9 +73,12 @@ pub fn run() {
                 layout.chrome_rect.position,
                 layout.chrome_rect.size,
             )?;
+            engine::register_chrome_hwnd(&window);
 
             // 3. Spawn initial default tab cleanly without lock contention
             let _ = tab_manager_state.create_tab(&app_handle, &window, None);
+            engine::send_tabs_to_bottom(&window);
+            engine::bring_chrome_to_top();
 
             // 4. Attach window resize listener without redundant relayout loops
             let handle_for_resize = app_handle.clone();
@@ -94,11 +97,8 @@ pub fn run() {
 
                     if let Some(main_win) = handle_for_resize.get_window("main") {
                         let (width, pos, mode, is_open, active_id) = {
-                            if let Some(mgr) = tab_mgr_for_resize.inner.try_lock() {
-                                (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open, mgr.active_tab_id.clone())
-                            } else {
-                                (SIDEBAR_WIDTH, crate::tabs::SidebarPosition::Left, crate::tabs::SidebarMode::Docked, false, None)
-                            }
+                            let mgr = tab_mgr_for_resize.inner.lock();
+                            (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open, mgr.active_tab_id.clone())
                         };
 
                         if let Ok(layout) = BoundsCalculator::compute_layout(&main_win, width, pos, mode, is_open) {
@@ -109,9 +109,10 @@ pub fn run() {
                             if let Some(tab_id) = active_id {
                                 if let Some(active_wv) = handle_for_resize.get_webview(&tab_id) {
                                     let _ = active_wv.set_bounds(layout.content_rect);
-                                    let _ = active_wv.set_focus();
                                 }
                             }
+                            engine::send_tabs_to_bottom(&main_win);
+                            engine::bring_chrome_to_top();
                         }
                     }
                 }

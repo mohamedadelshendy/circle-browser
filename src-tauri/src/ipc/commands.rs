@@ -212,9 +212,11 @@ pub fn set_sidebar_mode(
     if let Some(tab_id) = active_id {
         if let Some(wv) = app.get_webview(&tab_id) {
             let _ = wv.set_bounds(layout.content_rect);
-            let _ = wv.set_focus();
         }
     }
+
+    crate::engine::send_tabs_to_bottom(&window);
+    crate::engine::bring_chrome_to_top();
 
     let res = match new_mode {
         SidebarMode::Docked => "docked",
@@ -248,6 +250,9 @@ pub fn set_sidebar_overlay(
             let _ = chrome.set_focus();
         }
     }
+
+    crate::engine::send_tabs_to_bottom(&window);
+    crate::engine::bring_chrome_to_top();
 
     // Refocus content webview when overlay closes
     if !open {
@@ -294,9 +299,11 @@ pub fn toggle_sidebar_position(
     if let Some(tab_id) = active_id {
         if let Some(wv) = app.get_webview(&tab_id) {
             let _ = wv.set_bounds(layout.content_rect);
-            let _ = wv.set_focus();
         }
     }
+
+    crate::engine::send_tabs_to_bottom(&window);
+    crate::engine::bring_chrome_to_top();
 
     let pos_str = match new_pos {
         SidebarPosition::Left => "left",
@@ -337,9 +344,11 @@ pub fn set_sidebar_position(
     if let Some(tab_id) = active_id {
         if let Some(wv) = app.get_webview(&tab_id) {
             let _ = wv.set_bounds(layout.content_rect);
-            let _ = wv.set_focus();
         }
     }
+
+    crate::engine::send_tabs_to_bottom(&window);
+    crate::engine::bring_chrome_to_top();
 
     let pos_str = match pos {
         SidebarPosition::Left => "left",
@@ -369,10 +378,13 @@ pub fn minimize_window(app: AppHandle) -> Result<(), String> {
 pub fn maximize_window(app: AppHandle) -> Result<(), String> {
     let window = app.get_window("main").ok_or("Main window not found")?;
     if window.is_maximized().unwrap_or(false) {
-        window.unmaximize().map_err(|e| e.to_string())
+        window.unmaximize().map_err(|e| e.to_string())?;
     } else {
-        window.maximize().map_err(|e| e.to_string())
+        window.maximize().map_err(|e| e.to_string())?;
     }
+    crate::engine::send_tabs_to_bottom(&window);
+    crate::engine::bring_chrome_to_top();
+    Ok(())
 }
 
 #[tauri::command]
