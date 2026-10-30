@@ -272,7 +272,7 @@ impl TabManager {
         let parsed = Url::parse(&resolved_url).map_err(|e| format!("Failed to parse URL: {e}"))?;
 
         let wv = app_handle.get_webview(tab_id).ok_or("Webview not found")?;
-        wv.load_url(parsed.as_str()).map_err(|e| format!("Navigation failed: {e}"))?;
+        wv.navigate(parsed).map_err(|e| format!("Navigation failed: {e}"))?;
 
         if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == tab_id) {
             tab.url = resolved_url;
