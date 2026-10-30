@@ -8,6 +8,7 @@ pub use zorder::{
     bring_chrome_to_top,
     bring_topbar_to_top,
     register_chrome_hwnd,
+    register_topbar_hwnd,
     register_ui_hwnds,
     send_tabs_to_bottom,
 };

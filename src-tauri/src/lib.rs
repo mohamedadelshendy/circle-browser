@@ -79,6 +79,7 @@ pub fn run() {
                 layout.chrome_rect.position,
                 layout.chrome_rect.size,
             )?;
+            engine::register_chrome_hwnd(&window);
 
             // 3. Attach TopBar Window Controls Webview with transparency
             let topbar_builder = WebviewBuilder::new("topbar", WebviewUrl::App("index.html?view=topbar".into()))
@@ -88,8 +89,7 @@ pub fn run() {
                 layout.topbar_rect.position,
                 layout.topbar_rect.size,
             )?;
-
-            engine::register_ui_hwnds(&window);
+            engine::register_topbar_hwnd(&window);
 
             // 4. Spawn initial default tab cleanly without lock contention
             let _ = tab_manager_state.create_tab(&app_handle, &window, None);

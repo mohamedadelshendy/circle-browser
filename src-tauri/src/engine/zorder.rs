@@ -37,8 +37,8 @@ mod win32 {
     }
 }
 
-/// Registers the chrome and topbar webview HWNDs right after they are created.
-pub fn register_ui_hwnds(_window: &tauri::Window) {
+/// Registers the chrome webview HWND right after chrome webview is created.
+pub fn register_chrome_hwnd(_window: &tauri::Window) {
     #[cfg(target_os = "windows")]
     {
         if let Ok(parent) = _window.hwnd() {
@@ -52,25 +52,46 @@ pub fn register_ui_hwnds(_window: &tauri::Window) {
                 );
                 if !first_child.is_null() {
                     CHROME_HWND.store(first_child as isize, Ordering::SeqCst);
-
-                    let second_child = win32::FindWindowExW(
-                        parent_ptr,
-                        first_child,
-                        std::ptr::null(),
-                        std::ptr::null(),
-                    );
-                    if !second_child.is_null() {
-                        TOPBAR_HWND.store(second_child as isize, Ordering::SeqCst);
-                    }
                 }
             }
         }
     }
 }
 
-/// Backward compatibility alias
-pub fn register_chrome_hwnd(_window: &tauri::Window) {
-    register_ui_hwnds(_window);
+/// Registers the topbar webview HWND right after topbar webview is created.
+pub fn register_topbar_hwnd(_window: &tauri::Window) {
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(parent) = _window.hwnd() {
+            let parent_ptr = parent.0 as *mut std::ffi::c_void;
+            let chrome_ptr = CHROME_HWND.load(Ordering::SeqCst) as *mut std::ffi::c_void;
+            unsafe {
+                let mut child = win32::FindWindowExW(
+                    parent_ptr,
+                    std::ptr::null_mut(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                );
+                while !child.is_null() {
+                    if child != chrome_ptr {
+                        TOPBAR_HWND.store(child as isize, Ordering::SeqCst);
+                        break;
+                    }
+                    child = win32::FindWindowExW(
+                        parent_ptr,
+                        child,
+                        std::ptr::null(),
+                        std::ptr::null(),
+                    );
+                }
+            }
+        }
+    }
+}
+
+pub fn register_ui_hwnds(_window: &tauri::Window) {
+    register_chrome_hwnd(_window);
+    register_topbar_hwnd(_window);
 }
 
 /// Brings topbar to HWND_TOP so it renders on top of web pages.

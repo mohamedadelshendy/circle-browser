@@ -84,44 +84,34 @@ impl BoundsCalculator {
                     size: Size::Logical(LogicalSize::new(logical_size.width, logical_size.height)),
                 };
 
-                let chrome_rect = match position {
+                let current_sidebar_w = if is_overlay_open { overlay_width } else { trigger_width };
+
+                let (chrome_rect, topbar_rect) = match position {
                     SidebarPosition::Left => {
-                        if is_overlay_open {
-                            Rect {
-                                position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
-                                size: Size::Logical(LogicalSize::new(overlay_width, logical_size.height)),
-                            }
-                        } else {
-                            Rect {
-                                position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
-                                size: Size::Logical(LogicalSize::new(trigger_width, logical_size.height)),
-                            }
-                        }
+                        let c_rect = Rect {
+                            position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
+                            size: Size::Logical(LogicalSize::new(current_sidebar_w, logical_size.height)),
+                        };
+                        let tb_rect = Rect {
+                            position: Position::Logical(LogicalPosition::new(current_sidebar_w, 0.0)),
+                            size: Size::Logical(LogicalSize::new((logical_size.width - current_sidebar_w).max(0.0), topbar_height)),
+                        };
+                        (c_rect, tb_rect)
                     }
                     SidebarPosition::Right => {
-                        if is_overlay_open {
-                            Rect {
-                                position: Position::Logical(LogicalPosition::new(
-                                    (logical_size.width - overlay_width).max(0.0),
-                                    0.0,
-                                )),
-                                size: Size::Logical(LogicalSize::new(overlay_width, logical_size.height)),
-                            }
-                        } else {
-                            Rect {
-                                position: Position::Logical(LogicalPosition::new(
-                                    (logical_size.width - trigger_width).max(0.0),
-                                    0.0,
-                                )),
-                                size: Size::Logical(LogicalSize::new(trigger_width, logical_size.height)),
-                            }
-                        }
+                        let c_rect = Rect {
+                            position: Position::Logical(LogicalPosition::new(
+                                (logical_size.width - current_sidebar_w).max(0.0),
+                                0.0,
+                            )),
+                            size: Size::Logical(LogicalSize::new(current_sidebar_w, logical_size.height)),
+                        };
+                        let tb_rect = Rect {
+                            position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
+                            size: Size::Logical(LogicalSize::new((logical_size.width - current_sidebar_w).max(0.0), topbar_height)),
+                        };
+                        (c_rect, tb_rect)
                     }
-                };
-
-                let topbar_rect = Rect {
-                    position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
-                    size: Size::Logical(LogicalSize::new(logical_size.width, topbar_height)),
                 };
 
                 Ok(LayoutBounds { chrome_rect, content_rect, topbar_rect })

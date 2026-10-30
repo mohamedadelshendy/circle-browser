@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { browserBridge } from "../lib/tauri-bridge";
 
   let isHovered = false;
@@ -24,19 +25,36 @@
     if (hideTimer) {
       clearTimeout(hideTimer);
     }
-    // 400ms grace period so moving near buttons never flickers
+    // 200ms grace period before auto-hiding when cursor leaves top area
     hideTimer = window.setTimeout(() => {
       isHovered = false;
-      // Wait for smooth 240ms CSS slide-up transition before collapsing webview height in Rust
+      // Wait for smooth 180ms CSS slide-up transition before collapsing webview height in Rust
       collapseTimer = window.setTimeout(async () => {
         if (!isHovered) {
           await browserBridge.setTopbarOverlay(false);
         }
         collapseTimer = null;
-      }, 260);
+      }, 200);
       hideTimer = null;
-    }, 400);
+    }, 200);
   }
+
+  function handleMouseMove(e: MouseEvent) {
+    // If cursor moves downwards past the 32px bar, trigger leave immediately
+    if (e.clientY >= 32) {
+      handleMouseLeave();
+    }
+  }
+
+  onMount(() => {
+    window.addEventListener("mouseleave", handleMouseLeave);
+    window.addEventListener("blur", handleMouseLeave);
+
+    return () => {
+      window.removeEventListener("mouseleave", handleMouseLeave);
+      window.removeEventListener("blur", handleMouseLeave);
+    };
+  });
 </script>
 
 <div
@@ -45,6 +63,7 @@
   aria-label="Window Controls Top Bar"
   on:mouseenter={handleMouseEnter}
   on:mouseleave={handleMouseLeave}
+  on:mousemove={handleMouseMove}
 >
   <!-- Invisible 5px trigger strip at the very top edge of the screen when bar is collapsed -->
   {#if !isHovered}
@@ -57,15 +76,12 @@
   {/if}
 
   <!-- Floating Window Controls Bar (#323232) -->
-  <header
-    class="topbar-bar {isHovered ? 'visible' : ''}"
-    data-tauri-drag-region
-  >
+  <header class="topbar-bar {isHovered ? 'visible' : ''}">
     <!-- Left & Middle Draggable Window Area -->
     <div class="topbar-drag-area" data-tauri-drag-region></div>
 
     <!-- Right Window Control Buttons (Minimize, Maximize/Restore, Close) -->
-    <div class="topbar-window-controls" data-tauri-drag-region="false">
+    <div class="topbar-window-controls">
       <!-- Minimize -->
       <button
         type="button"
@@ -111,7 +127,7 @@
 <style>
   .topbar-root {
     width: 100%;
-    height: 100vh;
+    height: 100%;
     position: relative;
     overflow: hidden;
     background: transparent !important;
@@ -142,9 +158,8 @@
     transform: translateY(-100%);
     opacity: 0;
     pointer-events: none;
-    transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease;
+    transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease;
     will-change: transform, opacity;
-    -webkit-app-region: drag;
     z-index: 20;
   }
 
@@ -158,6 +173,7 @@
     flex: 1;
     height: 100%;
     -webkit-app-region: drag;
+    cursor: default;
   }
 
   .topbar-window-controls {
@@ -193,4 +209,3 @@
     color: #ffffff !important;
   }
 </style>
-
