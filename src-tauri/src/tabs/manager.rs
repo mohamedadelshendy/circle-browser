@@ -16,24 +16,35 @@ use crate::tabs::tab::Tab;
 pub struct TabManager {
     pub tabs: Vec<Tab>,
     pub active_tab_id: Option<String>,
-    pub shield_manager: Arc<Mutex<ShieldManager>>,
 }
 
 #[derive(Clone)]
-pub struct TabManagerState(pub Arc<Mutex<TabManager>>);
+pub struct TabManagerState {
+    pub inner: Arc<Mutex<TabManager>>,
+    pub shield_manager: Arc<Mutex<ShieldManager>>,
+}
 
 impl TabManager {
-    pub fn new(shield_manager: Arc<Mutex<ShieldManager>>) -> Self {
+    pub fn new() -> Self {
         Self {
             tabs: Vec::new(),
             active_tab_id: None,
+        }
+    }
+}
+
+impl TabManagerState {
+    pub fn new(shield_manager: Arc<Mutex<ShieldManager>>) -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(TabManager::new())),
             shield_manager,
         }
     }
 
-    /// Spawns a new native child WebView, injects privacy defusers, and positions it beneath the chrome bar.
+    /// Spawns a child WebView cleanly WITHOUT holding any Mutex locks during native OS calls.
+    /// This completely avoids Win32 / macOS message loop deadlocks.
     pub fn create_tab(
-        &mut self,
+        &self,
         app_handle: &AppHandle,
         window: &Window,
         target_url: Option<String>,
@@ -72,7 +83,6 @@ impl TabManager {
                 let url_str = nav_url.to_string();
                 let mut shields = shield_mgr.lock();
 
-                // Intercept and drop tracking/ad navigation requests
                 if shields.is_shield_enabled(&tab_id_clone) {
                     let decision = shields.engine.evaluate_url(&url_str);
                     if decision.should_block {
@@ -88,7 +98,7 @@ impl TabManager {
                                 shields_enabled: stats.shields_enabled,
                             },
                         );
-                        return false; // Cancel navigation
+                        return false;
                     }
                 }
 
@@ -99,7 +109,7 @@ impl TabManager {
                         url: url_str,
                     },
                 );
-                true // Allow navigation
+                true
             })
             .on_page_load(move |_webview, payload| {
                 let is_loading = matches!(payload.event(), PageLoadEvent::Started);
@@ -113,7 +123,7 @@ impl TabManager {
                 );
             });
 
-        // 4. Attach WebView directly to parent window client area
+        // 4. Attach WebView directly to window WITHOUT ANY LOCK HELD
         let new_webview = window
             .add_child(
                 webview_builder,
@@ -122,25 +132,29 @@ impl TabManager {
             )
             .map_err(|e| format!("Failed to attach child WebView to window: {e}"))?;
 
-        // 5. Hide currently active WebView to avoid frame blending
-        if let Some(prev_active_id) = &self.active_tab_id {
-            if let Some(prev_wv) = app_handle.get_webview(prev_active_id) {
+        // 5. Update state atomically
+        let mut new_tab = Tab::new(tab_id.clone(), resolved_url_str);
+        if is_new_tab {
+            new_tab.title = "New tab".to_string();
+        }
+
+        let prev_active_id = {
+            let mut manager = self.inner.lock();
+            let prev = manager.active_tab_id.clone();
+            manager.tabs.push(new_tab.clone());
+            manager.active_tab_id = Some(tab_id.clone());
+            prev
+        };
+
+        // 6. Hide previous and show new WebView without holding lock
+        if let Some(prev_id) = prev_active_id {
+            if let Some(prev_wv) = app_handle.get_webview(&prev_id) {
                 let _ = prev_wv.hide();
             }
         }
-
-        // 6. Present the new WebView
         let _ = new_webview.show();
 
-        let mut tab = Tab::new(tab_id.clone(), resolved_url_str);
-        if is_new_tab {
-            tab.title = "New tab".to_string();
-        }
-
-        self.tabs.push(tab.clone());
-        self.active_tab_id = Some(tab_id.clone());
-
-        // 7. Initialize shield stats for new tab
+        // 7. Initialize shield stats
         {
             let mut shields = self.shield_manager.lock();
             let stats = shields.get_or_create_stats(&tab_id);
@@ -156,31 +170,41 @@ impl TabManager {
             );
         }
 
-        // 8. Broadcast state changes to the chrome frontend
+        // 8. Broadcast state changes
+        let (all_tabs, active_id) = {
+            let manager = self.inner.lock();
+            (manager.tabs.clone(), manager.active_tab_id.clone())
+        };
+
         let _ = app_handle.emit(
             "tab-state-changed",
             TabStateChangedPayload {
-                tabs: self.tabs.clone(),
-                active_tab_id: self.active_tab_id.clone(),
+                tabs: all_tabs,
+                active_tab_id: active_id,
             },
         );
 
-        Ok(tab)
+        Ok(new_tab)
     }
 
-    /// Switches the active tab by hiding the current WebView and revealing the target WebView.
-    pub fn switch_tab(&mut self, app_handle: &AppHandle, target_tab_id: &str) -> Result<(), String> {
-        if self.active_tab_id.as_deref() == Some(target_tab_id) {
-            return Ok(());
-        }
+    /// Switches tab without holding locks during OS show/hide operations.
+    pub fn switch_tab(&self, app_handle: &AppHandle, target_tab_id: &str) -> Result<(), String> {
+        let (current_id, target_exists) = {
+            let mgr = self.inner.lock();
+            if mgr.active_tab_id.as_deref() == Some(target_tab_id) {
+                return Ok(());
+            }
+            let exists = mgr.tabs.iter().any(|t| t.id == target_tab_id);
+            (mgr.active_tab_id.clone(), exists)
+        };
 
-        if !self.tabs.iter().any(|t| t.id == target_tab_id) {
+        if !target_exists {
             return Err(format!("Tab ID '{target_tab_id}' does not exist"));
         }
 
         // 1. Hide current WebView
-        if let Some(current_id) = &self.active_tab_id {
-            if let Some(current_wv) = app_handle.get_webview(current_id) {
+        if let Some(current_id) = current_id {
+            if let Some(current_wv) = app_handle.get_webview(&current_id) {
                 let _ = current_wv.hide();
             }
         }
@@ -197,9 +221,15 @@ impl TabManager {
         }
 
         let _ = target_wv.show();
-        self.active_tab_id = Some(target_tab_id.to_string());
 
-        // 3. Emit shield stats for target tab
+        // 3. Update active tab id
+        let (all_tabs, active_id) = {
+            let mut mgr = self.inner.lock();
+            mgr.active_tab_id = Some(target_tab_id.to_string());
+            (mgr.tabs.clone(), mgr.active_tab_id.clone())
+        };
+
+        // 4. Emit shield stats for target tab
         {
             let mut shields = self.shield_manager.lock();
             let stats = shields.get_or_create_stats(target_tab_id);
@@ -215,70 +245,86 @@ impl TabManager {
             );
         }
 
-        // 4. Emit update event to UI
+        // 5. Emit update event to UI
         let _ = app_handle.emit(
             "tab-state-changed",
             TabStateChangedPayload {
-                tabs: self.tabs.clone(),
-                active_tab_id: self.active_tab_id.clone(),
+                tabs: all_tabs,
+                active_tab_id: active_id,
             },
         );
 
         Ok(())
     }
 
-    /// Closes a tab and destroys the native OS WebView handle immediately.
+    /// Closes a tab without holding locks during OS destroy calls.
     pub fn close_tab(
-        &mut self,
+        &self,
         app_handle: &AppHandle,
         window: &Window,
         tab_id: &str,
     ) -> Result<Option<String>, String> {
-        let index = self
-            .tabs
-            .iter()
-            .position(|t| t.id == tab_id)
-            .ok_or_else(|| format!("Cannot close non-existent tab '{tab_id}'"))?;
+        let (next_active_id, should_spawn_new) = {
+            let mut mgr = self.inner.lock();
+            let index = mgr
+                .tabs
+                .iter()
+                .position(|t| t.id == tab_id)
+                .ok_or_else(|| format!("Cannot close non-existent tab '{tab_id}'"))?;
 
-        // 1. Destroy native OS WebView handle to release memory immediately
+            mgr.tabs.remove(index);
+
+            if mgr.active_tab_id.as_deref() == Some(tab_id) {
+                if mgr.tabs.is_empty() {
+                    (None, true)
+                } else {
+                    let next_index = if index >= mgr.tabs.len() {
+                        mgr.tabs.len() - 1
+                    } else {
+                        index
+                    };
+                    let next_id = mgr.tabs[next_index].id.clone();
+                    (Some(next_id), false)
+                }
+            } else {
+                (mgr.active_tab_id.clone(), false)
+            }
+        };
+
+        // 1. Destroy native OS WebView handle without holding lock
         if let Some(wv) = app_handle.get_webview(tab_id) {
             let _ = wv.close();
         }
 
-        self.tabs.remove(index);
-
-        // 2. Select replacement active tab if closing the currently active one
-        let new_active = if self.active_tab_id.as_deref() == Some(tab_id) {
-            if self.tabs.is_empty() {
-                let replacement = self.create_tab(app_handle, window, None)?;
-                Some(replacement.id)
-            } else {
-                let next_index = if index >= self.tabs.len() {
-                    self.tabs.len() - 1
-                } else {
-                    index
-                };
-                let next_id = self.tabs[next_index].id.clone();
-                self.switch_tab(app_handle, &next_id)?;
-                Some(next_id)
-            }
+        // 2. Select replacement active tab
+        let final_active = if should_spawn_new {
+            let replacement = self.create_tab(app_handle, window, None)?;
+            Some(replacement.id)
+        } else if let Some(next_id) = next_active_id {
+            self.switch_tab(app_handle, &next_id)?;
+            Some(next_id)
         } else {
-            self.active_tab_id.clone()
+            None
+        };
+
+        let (all_tabs, active_id) = {
+            let mgr = self.inner.lock();
+            (mgr.tabs.clone(), mgr.active_tab_id.clone())
         };
 
         // 3. Notify chrome frontend
         let _ = app_handle.emit(
             "tab-state-changed",
             TabStateChangedPayload {
-                tabs: self.tabs.clone(),
-                active_tab_id: self.active_tab_id.clone(),
+                tabs: all_tabs,
+                active_tab_id: active_id,
             },
         );
 
-        Ok(new_active)
+        Ok(final_active)
     }
 
-    pub fn navigate(&mut self, app_handle: &AppHandle, tab_id: &str, input: &str) -> Result<(), String> {
+    pub fn navigate(&self, app_handle: &AppHandle, tab_id: &str, input: &str) -> Result<(), String> {
         let resolved_url = NavigationResolver::resolve(input, "google");
         let wv = app_handle.get_webview(tab_id).ok_or("Webview not found")?;
 
@@ -290,28 +336,32 @@ impl TabManager {
             wv.navigate(parsed).map_err(|e| format!("Navigation failed: {e}"))?;
         }
 
-        if let Some(tab) = self.tabs.iter_mut().find(|t| t.id == tab_id) {
-            tab.url = resolved_url;
-            if tab.url == "browser://newtab" {
-                tab.title = "New tab".to_string();
-            } else if tab.url.contains("google.com/search") {
-                if let Ok(u) = Url::parse(&tab.url) {
-                    if let Some((_, q)) = u.query_pairs().find(|(k, _)| k == "q") {
-                        tab.title = format!("{q} - Google Search");
+        let (all_tabs, active_id) = {
+            let mut mgr = self.inner.lock();
+            if let Some(tab) = mgr.tabs.iter_mut().find(|t| t.id == tab_id) {
+                tab.url = resolved_url;
+                if tab.url == "browser://newtab" {
+                    tab.title = "New tab".to_string();
+                } else if tab.url.contains("google.com/search") {
+                    if let Ok(u) = Url::parse(&tab.url) {
+                        if let Some((_, q)) = u.query_pairs().find(|(k, _)| k == "q") {
+                            tab.title = format!("{q} - Google Search");
+                        } else {
+                            tab.title = "Google Search".to_string();
+                        }
                     } else {
                         tab.title = "Google Search".to_string();
                     }
-                } else {
-                    tab.title = "Google Search".to_string();
                 }
             }
-        }
+            (mgr.tabs.clone(), mgr.active_tab_id.clone())
+        };
 
         let _ = app_handle.emit(
             "tab-state-changed",
             TabStateChangedPayload {
-                tabs: self.tabs.clone(),
-                active_tab_id: self.active_tab_id.clone(),
+                tabs: all_tabs,
+                active_tab_id: active_id,
             },
         );
 

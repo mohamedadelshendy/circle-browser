@@ -3,7 +3,7 @@ use tauri::{
 };
 
 use crate::engine::CHROME_BAR_HEIGHT;
-use crate::ipc::events::{ShieldStatsPayload, TabStateChangedPayload};
+use crate::ipc::events::TabStateChangedPayload;
 use crate::privacy::{ShieldManagerState, TabShieldStats};
 use crate::tabs::{Tab, TabManagerState};
 
@@ -17,8 +17,7 @@ pub fn open_tab(
         .get_window("main")
         .ok_or_else(|| "Parent window 'main' not found".to_string())?;
 
-    let mut manager = state.0.lock();
-    manager.create_tab(&app, &window, url)
+    state.create_tab(&app, &window, url)
 }
 
 #[tauri::command]
@@ -31,8 +30,7 @@ pub fn close_tab(
         .get_window("main")
         .ok_or_else(|| "Parent window 'main' not found".to_string())?;
 
-    let mut manager = state.0.lock();
-    manager.close_tab(&app, &window, &tab_id)
+    state.close_tab(&app, &window, &tab_id)
 }
 
 #[tauri::command]
@@ -41,8 +39,7 @@ pub fn switch_tab(
     state: State<'_, TabManagerState>,
     tab_id: String,
 ) -> Result<(), String> {
-    let mut manager = state.0.lock();
-    manager.switch_tab(&app, &tab_id)
+    state.switch_tab(&app, &tab_id)
 }
 
 #[tauri::command]
@@ -52,18 +49,22 @@ pub fn reorder_tabs(
     from_index: usize,
     to_index: usize,
 ) -> Result<(), String> {
-    let mut manager = state.0.lock();
-    if from_index < manager.tabs.len() && to_index < manager.tabs.len() {
-        let tab = manager.tabs.remove(from_index);
-        manager.tabs.insert(to_index, tab);
-        let _ = app.emit(
-            "tab-state-changed",
-            TabStateChangedPayload {
-                tabs: manager.tabs.clone(),
-                active_tab_id: manager.active_tab_id.clone(),
-            },
-        );
-    }
+    let (all_tabs, active_id) = {
+        let mut manager = state.inner.lock();
+        if from_index < manager.tabs.len() && to_index < manager.tabs.len() {
+            let tab = manager.tabs.remove(from_index);
+            manager.tabs.insert(to_index, tab);
+        }
+        (manager.tabs.clone(), manager.active_tab_id.clone())
+    };
+
+    let _ = app.emit(
+        "tab-state-changed",
+        TabStateChangedPayload {
+            tabs: all_tabs,
+            active_tab_id: active_id,
+        },
+    );
     Ok(())
 }
 
@@ -74,8 +75,7 @@ pub fn navigate(
     tab_id: String,
     url: String,
 ) -> Result<(), String> {
-    let mut manager = state.0.lock();
-    manager.navigate(&app, &tab_id, &url)
+    state.navigate(&app, &tab_id, &url)
 }
 
 #[tauri::command]
@@ -84,8 +84,7 @@ pub fn reload(
     state: State<'_, TabManagerState>,
     tab_id: String,
 ) -> Result<(), String> {
-    let manager = state.0.lock();
-    manager.reload(&app, &tab_id)
+    state.reload(&app, &tab_id)
 }
 
 #[tauri::command]
@@ -94,8 +93,7 @@ pub fn go_back(
     state: State<'_, TabManagerState>,
     tab_id: String,
 ) -> Result<(), String> {
-    let manager = state.0.lock();
-    manager.go_back(&app, &tab_id)
+    state.go_back(&app, &tab_id)
 }
 
 #[tauri::command]
@@ -104,13 +102,12 @@ pub fn go_forward(
     state: State<'_, TabManagerState>,
     tab_id: String,
 ) -> Result<(), String> {
-    let manager = state.0.lock();
-    manager.go_forward(&app, &tab_id)
+    state.go_forward(&app, &tab_id)
 }
 
 #[tauri::command]
 pub fn get_tabs(state: State<'_, TabManagerState>) -> Result<TabStateChangedPayload, String> {
-    let manager = state.0.lock();
+    let manager = state.inner.lock();
     Ok(TabStateChangedPayload {
         tabs: manager.tabs.clone(),
         active_tab_id: manager.active_tab_id.clone(),
@@ -139,7 +136,7 @@ pub fn toggle_shields(
     let stats = manager.get_or_create_stats(&tab_id);
     let _ = app.emit(
         "shield-stats-updated",
-        ShieldStatsPayload {
+        crate::ipc::events::ShieldStatsPayload {
             tab_id: tab_id.clone(),
             blocked_trackers_count: stats.blocked_trackers_count,
             blocked_ads_count: stats.blocked_ads_count,
