@@ -244,6 +244,9 @@ pub fn set_sidebar_overlay(
 
     if let Some(chrome) = app.get_webview("chrome") {
         let _ = chrome.set_bounds(layout.chrome_rect);
+        if open {
+            let _ = chrome.set_focus();
+        }
     }
 
     // Refocus content webview when overlay closes
@@ -296,6 +299,49 @@ pub fn toggle_sidebar_position(
     }
 
     let pos_str = match new_pos {
+        SidebarPosition::Left => "left",
+        SidebarPosition::Right => "right",
+    };
+    Ok(pos_str.to_string())
+}
+
+#[tauri::command]
+pub fn set_sidebar_position(
+    app: AppHandle,
+    state: State<'_, TabManagerState>,
+    position: String,
+) -> Result<String, String> {
+    let window = app.get_window("main").ok_or("Main window not found")?;
+
+    let target_pos = match position.to_lowercase().as_str() {
+        "right" => SidebarPosition::Right,
+        _ => SidebarPosition::Left,
+    };
+
+    let (width, pos, mode, is_open) = {
+        let mut mgr = state.inner.lock();
+        mgr.sidebar_position = target_pos;
+        (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open)
+    };
+
+    let layout = crate::engine::BoundsCalculator::compute_layout(&window, width, pos, mode, is_open)?;
+    if let Some(chrome) = app.get_webview("chrome") {
+        let _ = chrome.set_bounds(layout.chrome_rect);
+    }
+
+    let active_id = {
+        let mgr = state.inner.lock();
+        mgr.active_tab_id.clone()
+    };
+
+    if let Some(tab_id) = active_id {
+        if let Some(wv) = app.get_webview(&tab_id) {
+            let _ = wv.set_bounds(layout.content_rect);
+            let _ = wv.set_focus();
+        }
+    }
+
+    let pos_str = match pos {
         SidebarPosition::Left => "left",
         SidebarPosition::Right => "right",
     };

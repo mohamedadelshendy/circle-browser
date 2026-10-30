@@ -44,6 +44,7 @@ pub fn run() {
             set_sidebar_mode,
             set_sidebar_overlay,
             toggle_sidebar_position,
+            set_sidebar_position,
             minimize_window,
             maximize_window,
             close_window,

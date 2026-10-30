@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
+  import { createEventDispatcher, onMount } from "svelte";
   import { browserBridge } from "../lib/tauri-bridge";
   import type { Tab } from "../lib/types";
   import ShieldsPopup from "./ShieldsPopup.svelte";
@@ -117,15 +117,34 @@
     }
   }
 
+  onMount(async () => {
+    try {
+      const savedPos = localStorage.getItem("circle_sidebar_position") as "left" | "right" | null;
+      if (savedPos && (savedPos === "left" || savedPos === "right")) {
+        sidebarPosition = savedPos;
+        await browserBridge.setSidebarPosition(savedPos);
+      }
+      const savedMode = localStorage.getItem("circle_sidebar_mode") as "docked" | "auto_hide" | null;
+      if (savedMode && (savedMode === "docked" || savedMode === "auto_hide")) {
+        sidebarMode = savedMode;
+        await browserBridge.setSidebarMode(savedMode);
+      }
+    } catch (err) {
+      console.error("Failed to restore sidebar preferences:", err);
+    }
+  });
+
   // Toggle between Docked (side-by-side) and Auto-Hide (disappears & website fills full screen)
   async function handleToggleDockMode() {
     if (sidebarMode === "docked") {
       sidebarMode = "auto_hide";
       isOverlayVisible = false;
+      localStorage.setItem("circle_sidebar_mode", "auto_hide");
       await browserBridge.setSidebarMode("auto_hide");
     } else {
       sidebarMode = "docked";
       isOverlayVisible = false;
+      localStorage.setItem("circle_sidebar_mode", "docked");
       await browserBridge.setSidebarMode("docked");
     }
   }
@@ -155,6 +174,7 @@
   async function handleToggleSidebarPosition() {
     const newPos = await browserBridge.toggleSidebarPosition();
     sidebarPosition = newPos === "right" ? "right" : "left";
+    localStorage.setItem("circle_sidebar_position", sidebarPosition);
   }
 
   // Drag and drop tab reordering
@@ -195,7 +215,12 @@
   }
 </script>
 
-<div class="sidebar-root-wrapper">
+<div
+  class="sidebar-root-wrapper"
+  role="region"
+  aria-label="Circle Browser Sidebar"
+  on:mouseenter={handleEdgeMouseEnter}
+>
   <!-- Invisible 12px Edge Trigger Strip when in Auto-Hide Mode -->
   {#if sidebarMode === "auto_hide"}
     <div

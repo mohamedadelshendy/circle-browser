@@ -64,18 +64,30 @@ impl BoundsCalculator {
                 }
             }
             SidebarMode::AutoHide => {
-                // Content WebView is ALWAYS 100% full screen
-                let content_rect = Rect {
-                    position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
-                    size: Size::Logical(LogicalSize::new(logical_size.width, logical_size.height)),
-                };
-
-                let trigger_width = 12.0; // 12px invisible edge trigger strip
+                let trigger_width = 16.0; // 16px edge trigger strip
                 let overlay_width = clamped_width.max(250.0);
 
-                let chrome_rect = match position {
+                match position {
                     SidebarPosition::Left => {
-                        if is_overlay_open {
+                        let content_rect = if is_overlay_open {
+                            // When overlay is open, website stays full height
+                            Rect {
+                                position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
+                                size: Size::Logical(LogicalSize::new(logical_size.width, logical_size.height)),
+                            }
+                        } else {
+                            // When closed, content starts after the 16px trigger strip
+                            // so chrome at x=0 receives native mouseenter reliably!
+                            Rect {
+                                position: Position::Logical(LogicalPosition::new(trigger_width, 0.0)),
+                                size: Size::Logical(LogicalSize::new(
+                                    (logical_size.width - trigger_width).max(0.0),
+                                    logical_size.height,
+                                )),
+                            }
+                        };
+
+                        let chrome_rect = if is_overlay_open {
                             Rect {
                                 position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
                                 size: Size::Logical(LogicalSize::new(overlay_width, logical_size.height)),
@@ -85,10 +97,30 @@ impl BoundsCalculator {
                                 position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
                                 size: Size::Logical(LogicalSize::new(trigger_width, logical_size.height)),
                             }
-                        }
+                        };
+
+                        Ok(LayoutBounds { chrome_rect, content_rect })
                     }
                     SidebarPosition::Right => {
-                        if is_overlay_open {
+                        let content_rect = if is_overlay_open {
+                            // When overlay is open, website stays full height
+                            Rect {
+                                position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
+                                size: Size::Logical(LogicalSize::new(logical_size.width, logical_size.height)),
+                            }
+                        } else {
+                            // When closed, content stops before the 16px trigger strip
+                            // so chrome at the right edge receives native mouseenter reliably!
+                            Rect {
+                                position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
+                                size: Size::Logical(LogicalSize::new(
+                                    (logical_size.width - trigger_width).max(0.0),
+                                    logical_size.height,
+                                )),
+                            }
+                        };
+
+                        let chrome_rect = if is_overlay_open {
                             Rect {
                                 position: Position::Logical(LogicalPosition::new(
                                     (logical_size.width - overlay_width).max(0.0),
@@ -104,11 +136,11 @@ impl BoundsCalculator {
                                 )),
                                 size: Size::Logical(LogicalSize::new(trigger_width, logical_size.height)),
                             }
-                        }
-                    }
-                };
+                        };
 
-                Ok(LayoutBounds { chrome_rect, content_rect })
+                        Ok(LayoutBounds { chrome_rect, content_rect })
+                    }
+                }
             }
         }
     }
