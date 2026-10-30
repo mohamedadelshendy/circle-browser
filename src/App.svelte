@@ -1,8 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import CircleSidebar from "./components/CircleSidebar.svelte";
+  import TopBarWindowControls from "./components/TopBarWindowControls.svelte";
   import { browserBridge } from "./lib/tauri-bridge";
   import type { Tab } from "./lib/types";
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const isTopbarView = urlParams.get("view") === "topbar";
 
   let tabs: Tab[] = [];
   let activeTabId: string | null = null;
@@ -10,6 +14,8 @@
   $: activeTab = tabs.find((t) => t.id === activeTabId) || null;
 
   onMount(() => {
+    if (isTopbarView) return;
+
     // 1. Initial State Fetch
     browserBridge.getTabs().then((state) => {
       tabs = state.tabs;
@@ -113,16 +119,21 @@
   }
 </script>
 
-<!-- Circle Browser Vertical Sidebar Architecture -->
-<CircleSidebar
-  {tabs}
-  {activeTabId}
-  {activeTab}
-  on:newTab={handleNewTab}
-  on:switchTab={(e) => handleSwitchTab(e.detail)}
-  on:closeTab={(e) => handleCloseTab(e.detail)}
-  on:navigate={(e) => handleNavigate(e.detail)}
-  on:back={handleBack}
-  on:forward={handleForward}
-  on:reload={handleReload}
-/>
+{#if isTopbarView}
+  <!-- Floating Top Bar Window Controls Overlay -->
+  <TopBarWindowControls />
+{:else}
+  <!-- Circle Browser Vertical Sidebar Architecture -->
+  <CircleSidebar
+    {tabs}
+    {activeTabId}
+    {activeTab}
+    on:newTab={handleNewTab}
+    on:switchTab={(e) => handleSwitchTab(e.detail)}
+    on:closeTab={(e) => handleCloseTab(e.detail)}
+    on:navigate={(e) => handleNavigate(e.detail)}
+    on:back={handleBack}
+    on:forward={handleForward}
+    on:reload={handleReload}
+  />
+{/if}

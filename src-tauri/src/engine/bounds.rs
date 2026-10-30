@@ -10,19 +10,21 @@ pub const CHROME_BAR_HEIGHT: f64 = 88.0;
 pub struct LayoutBounds {
     pub chrome_rect: Rect,
     pub content_rect: Rect,
+    pub topbar_rect: Rect,
 }
 
 pub struct BoundsCalculator;
 
 impl BoundsCalculator {
-    /// Computes exact pixel-perfect logical bounds for the sidebar (chrome)
-    /// and the active tab content WebView, supporting both Docked and Auto-Hide sticky overlay modes.
+    /// Computes exact pixel-perfect logical bounds for the sidebar (chrome),
+    /// the active tab content WebView, and the auto-hiding top bar window controls.
     pub fn compute_layout(
         window: &Window,
         sidebar_width: f64,
         position: SidebarPosition,
         mode: SidebarMode,
         is_overlay_open: bool,
+        is_topbar_open: bool,
     ) -> Result<LayoutBounds, String> {
         let physical_size = window
             .inner_size()
@@ -34,6 +36,7 @@ impl BoundsCalculator {
 
         let logical_size = physical_size.to_logical::<f64>(scale_factor);
         let clamped_width = sidebar_width.max(180.0).min(logical_size.width);
+        let topbar_height = if is_topbar_open { 32.0 } else { 5.0 };
 
         match mode {
             SidebarMode::Docked => {
@@ -48,7 +51,11 @@ impl BoundsCalculator {
                             position: Position::Logical(LogicalPosition::new(clamped_width, 0.0)),
                             size: Size::Logical(LogicalSize::new(content_width, logical_size.height)),
                         };
-                        Ok(LayoutBounds { chrome_rect, content_rect })
+                        let topbar_rect = Rect {
+                            position: Position::Logical(LogicalPosition::new(clamped_width, 0.0)),
+                            size: Size::Logical(LogicalSize::new(content_width, topbar_height)),
+                        };
+                        Ok(LayoutBounds { chrome_rect, content_rect, topbar_rect })
                     }
                     SidebarPosition::Right => {
                         let content_rect = Rect {
@@ -59,7 +66,11 @@ impl BoundsCalculator {
                             position: Position::Logical(LogicalPosition::new(content_width, 0.0)),
                             size: Size::Logical(LogicalSize::new(clamped_width, logical_size.height)),
                         };
-                        Ok(LayoutBounds { chrome_rect, content_rect })
+                        let topbar_rect = Rect {
+                            position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
+                            size: Size::Logical(LogicalSize::new(content_width, topbar_height)),
+                        };
+                        Ok(LayoutBounds { chrome_rect, content_rect, topbar_rect })
                     }
                 }
             }
@@ -108,7 +119,12 @@ impl BoundsCalculator {
                     }
                 };
 
-                Ok(LayoutBounds { chrome_rect, content_rect })
+                let topbar_rect = Rect {
+                    position: Position::Logical(LogicalPosition::new(0.0, 0.0)),
+                    size: Size::Logical(LogicalSize::new(logical_size.width, topbar_height)),
+                };
+
+                Ok(LayoutBounds { chrome_rect, content_rect, topbar_rect })
             }
         }
     }

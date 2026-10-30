@@ -45,6 +45,7 @@ pub fn run() {
             set_sidebar_width,
             set_sidebar_mode,
             set_sidebar_overlay,
+            set_topbar_overlay,
             toggle_sidebar_position,
             set_sidebar_position,
             minimize_window,
@@ -64,11 +65,11 @@ pub fn run() {
                 .transparent(true)
                 .build()?;
 
-            let (init_width, init_pos, init_mode, is_open) = {
+            let (init_width, init_pos, init_mode, is_open, is_topbar_open) = {
                 let mgr = tab_manager_state.inner.lock();
-                (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open)
+                (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open, mgr.is_topbar_open)
             };
-            let layout = BoundsCalculator::compute_layout(&window, init_width, init_pos, init_mode, is_open)?;
+            let layout = BoundsCalculator::compute_layout(&window, init_width, init_pos, init_mode, is_open, is_topbar_open)?;
 
             // 2. Attach UI Sidebar Webview with transparency so only the floating card renders
             let chrome_builder = WebviewBuilder::new("chrome", WebviewUrl::App("index.html".into()))
@@ -78,14 +79,25 @@ pub fn run() {
                 layout.chrome_rect.position,
                 layout.chrome_rect.size,
             )?;
-            engine::register_chrome_hwnd(&window);
 
-            // 3. Spawn initial default tab cleanly without lock contention
+            // 3. Attach TopBar Window Controls Webview with transparency
+            let topbar_builder = WebviewBuilder::new("topbar", WebviewUrl::App("index.html?view=topbar".into()))
+                .transparent(true);
+            let _topbar_webview = window.add_child(
+                topbar_builder,
+                layout.topbar_rect.position,
+                layout.topbar_rect.size,
+            )?;
+
+            engine::register_ui_hwnds(&window);
+
+            // 4. Spawn initial default tab cleanly without lock contention
             let _ = tab_manager_state.create_tab(&app_handle, &window, None);
             engine::send_tabs_to_bottom(&window);
+            engine::bring_topbar_to_top();
             engine::bring_chrome_to_top();
 
-            // 4. Attach window resize listener without redundant relayout loops
+            // 5. Attach window resize listener without redundant relayout loops
             let handle_for_resize = app_handle.clone();
             let tab_mgr_for_resize = tab_manager_state.clone();
             let last_physical_size = Arc::new(Mutex::new(tauri::PhysicalSize::new(0, 0)));
@@ -101,14 +113,18 @@ pub fn run() {
                     }
 
                     if let Some(main_win) = handle_for_resize.get_window("main") {
-                        let (width, pos, mode, is_open, active_id) = {
+                        let (width, pos, mode, is_open, is_topbar_open, active_id) = {
                             let mgr = tab_mgr_for_resize.inner.lock();
-                            (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open, mgr.active_tab_id.clone())
+                            (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open, mgr.is_topbar_open, mgr.active_tab_id.clone())
                         };
 
-                        if let Ok(layout) = BoundsCalculator::compute_layout(&main_win, width, pos, mode, is_open) {
+                        if let Ok(layout) = BoundsCalculator::compute_layout(&main_win, width, pos, mode, is_open, is_topbar_open) {
                             if let Some(chrome) = handle_for_resize.get_webview("chrome") {
                                 let _ = chrome.set_bounds(layout.chrome_rect);
+                            }
+
+                            if let Some(topbar) = handle_for_resize.get_webview("topbar") {
+                                let _ = topbar.set_bounds(layout.topbar_rect);
                             }
 
                             if let Some(tab_id) = active_id {
@@ -117,6 +133,7 @@ pub fn run() {
                                 }
                             }
                             engine::send_tabs_to_bottom(&main_win);
+                            engine::bring_topbar_to_top();
                             engine::bring_chrome_to_top();
                         }
                     }

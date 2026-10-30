@@ -155,15 +155,18 @@ pub fn set_sidebar_width(
 ) -> Result<(), String> {
     let window = app.get_window("main").ok_or("Main window not found")?;
 
-    let (pos, mode, is_open) = {
+    let (pos, mode, is_open, is_topbar_open) = {
         let mut mgr = state.inner.lock();
         mgr.sidebar_width = width;
-        (mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open)
+        (mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open, mgr.is_topbar_open)
     };
 
-    let layout = crate::engine::BoundsCalculator::compute_layout(&window, width, pos, mode, is_open)?;
+    let layout = crate::engine::BoundsCalculator::compute_layout(&window, width, pos, mode, is_open, is_topbar_open)?;
     if let Some(chrome) = app.get_webview("chrome") {
         let _ = chrome.set_bounds(layout.chrome_rect);
+    }
+    if let Some(topbar) = app.get_webview("topbar") {
+        let _ = topbar.set_bounds(layout.topbar_rect);
     }
 
     let active_id = {
@@ -188,20 +191,23 @@ pub fn set_sidebar_mode(
 ) -> Result<String, String> {
     let window = app.get_window("main").ok_or("Main window not found")?;
 
-    let (width, pos, new_mode, is_open) = {
+    let (width, pos, new_mode, is_open, is_topbar_open) = {
         let mut mgr = state.inner.lock();
         mgr.sidebar_mode = match mode.as_str() {
             "auto_hide" | "autohide" => SidebarMode::AutoHide,
             _ => SidebarMode::Docked,
         };
         mgr.is_overlay_open = false;
-        (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open)
+        (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open, mgr.is_topbar_open)
     };
 
-    let layout = crate::engine::BoundsCalculator::compute_layout(&window, width, pos, new_mode, is_open)?;
+    let layout = crate::engine::BoundsCalculator::compute_layout(&window, width, pos, new_mode, is_open, is_topbar_open)?;
 
     if let Some(chrome) = app.get_webview("chrome") {
         let _ = chrome.set_bounds(layout.chrome_rect);
+    }
+    if let Some(topbar) = app.get_webview("topbar") {
+        let _ = topbar.set_bounds(layout.topbar_rect);
     }
 
     let active_id = {
@@ -216,6 +222,7 @@ pub fn set_sidebar_mode(
     }
 
     crate::engine::send_tabs_to_bottom(&window);
+    crate::engine::bring_topbar_to_top();
     crate::engine::bring_chrome_to_top();
 
     let settings_path = crate::storage::get_settings_path(None);
@@ -240,16 +247,16 @@ pub fn set_sidebar_overlay(
 ) -> Result<(), String> {
     let window = app.get_window("main").ok_or("Main window not found")?;
 
-    let (width, pos, mode) = {
+    let (width, pos, mode, is_topbar_open) = {
         let mut mgr = state.inner.lock();
         if mgr.sidebar_mode != SidebarMode::AutoHide {
             return Ok(());
         }
         mgr.is_overlay_open = open;
-        (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode)
+        (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_topbar_open)
     };
 
-    let layout = crate::engine::BoundsCalculator::compute_layout(&window, width, pos, mode, open)?;
+    let layout = crate::engine::BoundsCalculator::compute_layout(&window, width, pos, mode, open, is_topbar_open)?;
 
     if let Some(chrome) = app.get_webview("chrome") {
         let _ = chrome.set_bounds(layout.chrome_rect);
@@ -257,8 +264,12 @@ pub fn set_sidebar_overlay(
             let _ = chrome.set_focus();
         }
     }
+    if let Some(topbar) = app.get_webview("topbar") {
+        let _ = topbar.set_bounds(layout.topbar_rect);
+    }
 
     crate::engine::send_tabs_to_bottom(&window);
+    crate::engine::bring_topbar_to_top();
     crate::engine::bring_chrome_to_top();
 
     // Refocus content webview when overlay closes
@@ -278,24 +289,54 @@ pub fn set_sidebar_overlay(
 }
 
 #[tauri::command]
+pub fn set_topbar_overlay(
+    app: AppHandle,
+    state: State<'_, TabManagerState>,
+    open: bool,
+) -> Result<(), String> {
+    let window = app.get_window("main").ok_or("Main window not found")?;
+
+    let (width, pos, mode, overlay_open) = {
+        let mut mgr = state.inner.lock();
+        mgr.is_topbar_open = open;
+        (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open)
+    };
+
+    let layout = crate::engine::BoundsCalculator::compute_layout(&window, width, pos, mode, overlay_open, open)?;
+
+    if let Some(topbar) = app.get_webview("topbar") {
+        let _ = topbar.set_bounds(layout.topbar_rect);
+    }
+
+    crate::engine::send_tabs_to_bottom(&window);
+    crate::engine::bring_topbar_to_top();
+    crate::engine::bring_chrome_to_top();
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn toggle_sidebar_position(
     app: AppHandle,
     state: State<'_, TabManagerState>,
 ) -> Result<String, String> {
     let window = app.get_window("main").ok_or("Main window not found")?;
 
-    let (width, new_pos, mode, is_open) = {
+    let (width, new_pos, mode, is_open, is_topbar_open) = {
         let mut mgr = state.inner.lock();
         mgr.sidebar_position = match mgr.sidebar_position {
             SidebarPosition::Left => SidebarPosition::Right,
             SidebarPosition::Right => SidebarPosition::Left,
         };
-        (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open)
+        (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open, mgr.is_topbar_open)
     };
 
-    let layout = crate::engine::BoundsCalculator::compute_layout(&window, width, new_pos, mode, is_open)?;
+    let layout = crate::engine::BoundsCalculator::compute_layout(&window, width, new_pos, mode, is_open, is_topbar_open)?;
     if let Some(chrome) = app.get_webview("chrome") {
         let _ = chrome.set_bounds(layout.chrome_rect);
+    }
+    if let Some(topbar) = app.get_webview("topbar") {
+        let _ = topbar.set_bounds(layout.topbar_rect);
     }
 
     let active_id = {
@@ -310,6 +351,7 @@ pub fn toggle_sidebar_position(
     }
 
     crate::engine::send_tabs_to_bottom(&window);
+    crate::engine::bring_topbar_to_top();
     crate::engine::bring_chrome_to_top();
 
     let settings_path = crate::storage::get_settings_path(None);
@@ -339,15 +381,18 @@ pub fn set_sidebar_position(
         _ => SidebarPosition::Left,
     };
 
-    let (width, pos, mode, is_open) = {
+    let (width, pos, mode, is_open, is_topbar_open) = {
         let mut mgr = state.inner.lock();
         mgr.sidebar_position = target_pos;
-        (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open)
+        (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open, mgr.is_topbar_open)
     };
 
-    let layout = crate::engine::BoundsCalculator::compute_layout(&window, width, pos, mode, is_open)?;
+    let layout = crate::engine::BoundsCalculator::compute_layout(&window, width, pos, mode, is_open, is_topbar_open)?;
     if let Some(chrome) = app.get_webview("chrome") {
         let _ = chrome.set_bounds(layout.chrome_rect);
+    }
+    if let Some(topbar) = app.get_webview("topbar") {
+        let _ = topbar.set_bounds(layout.topbar_rect);
     }
 
     let active_id = {
@@ -362,6 +407,7 @@ pub fn set_sidebar_position(
     }
 
     crate::engine::send_tabs_to_bottom(&window);
+    crate::engine::bring_topbar_to_top();
     crate::engine::bring_chrome_to_top();
 
     let settings_path = crate::storage::get_settings_path(None);
@@ -404,6 +450,7 @@ pub fn maximize_window(app: AppHandle) -> Result<(), String> {
         window.maximize().map_err(|e| e.to_string())?;
     }
     crate::engine::send_tabs_to_bottom(&window);
+    crate::engine::bring_topbar_to_top();
     crate::engine::bring_chrome_to_top();
     Ok(())
 }

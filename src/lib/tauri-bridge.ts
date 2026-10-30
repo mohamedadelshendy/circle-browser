@@ -69,6 +69,10 @@ export const browserBridge = {
     return await invoke("set_sidebar_overlay", { open });
   },
 
+  setTopbarOverlay: async (open: boolean): Promise<void> => {
+    return await invoke("set_topbar_overlay", { open });
+  },
+
   toggleSidebarPosition: async (): Promise<string> => {
     return await invoke("toggle_sidebar_position");
   },

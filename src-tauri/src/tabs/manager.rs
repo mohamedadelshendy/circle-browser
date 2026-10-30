@@ -33,6 +33,7 @@ pub struct TabManager {
     pub sidebar_position: SidebarPosition,
     pub sidebar_mode: SidebarMode,
     pub is_overlay_open: bool,
+    pub is_topbar_open: bool,
 }
 
 #[derive(Clone)]
@@ -50,6 +51,7 @@ impl TabManager {
             sidebar_position: SidebarPosition::Left,
             sidebar_mode: SidebarMode::Docked,
             is_overlay_open: false,
+            is_topbar_open: false,
         }
     }
 
@@ -61,6 +63,7 @@ impl TabManager {
             sidebar_position: settings.sidebar_position,
             sidebar_mode: settings.sidebar_mode,
             is_overlay_open: false,
+            is_topbar_open: false,
         }
     }
 }
@@ -95,13 +98,13 @@ impl TabManagerState {
         let tab_id = format!("tab_{}", Uuid::new_v4().simple());
         let webview_label = tab_id.clone();
 
-        let (current_width, current_pos, current_mode, is_open) = {
+        let (current_width, current_pos, current_mode, is_open, is_topbar_open) = {
             let mgr = self.inner.lock();
-            (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open)
+            (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open, mgr.is_topbar_open)
         };
 
         // 1. Calculate dynamic positioning with zero gap
-        let layout = BoundsCalculator::compute_layout(window, current_width, current_pos, current_mode, is_open)?;
+        let layout = BoundsCalculator::compute_layout(window, current_width, current_pos, current_mode, is_open, is_topbar_open)?;
 
         // 2. Prepare anti-fingerprinting & cosmetic ad defuser script
         let defuser_script = CosmeticFilter::generate_defuser_script();
@@ -253,13 +256,13 @@ impl TabManagerState {
             .get_webview(target_tab_id)
             .ok_or_else(|| format!("Native WebView for '{target_tab_id}' not found"))?;
 
-        let (width, pos, mode, is_open) = {
+        let (width, pos, mode, is_open, is_topbar_open) = {
             let mgr = self.inner.lock();
-            (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open)
+            (mgr.sidebar_width, mgr.sidebar_position, mgr.sidebar_mode, mgr.is_overlay_open, mgr.is_topbar_open)
         };
 
         if let Some(window) = app_handle.get_window("main") {
-            if let Ok(layout) = BoundsCalculator::compute_layout(&window, width, pos, mode, is_open) {
+            if let Ok(layout) = BoundsCalculator::compute_layout(&window, width, pos, mode, is_open, is_topbar_open) {
                 let _ = target_wv.set_bounds(layout.content_rect);
             }
         }
@@ -268,6 +271,7 @@ impl TabManagerState {
         let _ = target_wv.set_focus();
         if let Some(window) = app_handle.get_window("main") {
             crate::engine::send_tabs_to_bottom(&window);
+            crate::engine::bring_topbar_to_top();
             crate::engine::bring_chrome_to_top();
         }
 

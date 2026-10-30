@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicIsize, Ordering};
 
 pub static CHROME_HWND: AtomicIsize = AtomicIsize::new(0);
+pub static TOPBAR_HWND: AtomicIsize = AtomicIsize::new(0);
 
 #[cfg(target_os = "windows")]
 mod win32 {
@@ -35,8 +36,8 @@ mod win32 {
     }
 }
 
-/// Registers the chrome webview HWND right after it is created.
-pub fn register_chrome_hwnd(window: &tauri::Window) {
+/// Registers the chrome and topbar webview HWNDs right after they are created.
+pub fn register_ui_hwnds(window: &tauri::Window) {
     #[cfg(target_os = "windows")]
     {
         if let Ok(parent) = window.hwnd() {
@@ -50,13 +51,49 @@ pub fn register_chrome_hwnd(window: &tauri::Window) {
                 );
                 if !first_child.is_null() {
                     CHROME_HWND.store(first_child as isize, Ordering::SeqCst);
+
+                    let second_child = win32::FindWindowExW(
+                        parent_ptr,
+                        first_child,
+                        std::ptr::null(),
+                        std::ptr::null(),
+                    );
+                    if !second_child.is_null() {
+                        TOPBAR_HWND.store(second_child as isize, Ordering::SeqCst);
+                    }
                 }
             }
         }
     }
 }
 
-/// Brings chrome (sidebar UI) to HWND_TOP so it always renders on top of web pages.
+/// Backward compatibility alias
+pub fn register_chrome_hwnd(window: &tauri::Window) {
+    register_ui_hwnds(window);
+}
+
+/// Brings topbar to HWND_TOP so it renders on top of web pages.
+pub fn bring_topbar_to_top() {
+    #[cfg(target_os = "windows")]
+    {
+        let hwnd = TOPBAR_HWND.load(Ordering::SeqCst);
+        if hwnd != 0 {
+            unsafe {
+                win32::SetWindowPos(
+                    hwnd as *mut std::ffi::c_void,
+                    win32::HWND_TOP,
+                    0,
+                    0,
+                    0,
+                    0,
+                    win32::SWP_NOMOVE | win32::SWP_NOSIZE | win32::SWP_NOACTIVATE,
+                );
+            }
+        }
+    }
+}
+
+/// Brings chrome (sidebar UI) to HWND_TOP above everything (including topbar).
 pub fn bring_chrome_to_top() {
     #[cfg(target_os = "windows")]
     {
@@ -77,13 +114,14 @@ pub fn bring_chrome_to_top() {
     }
 }
 
-/// Pushes all tab webviews to HWND_BOTTOM so they are always the layer below chrome.
+/// Pushes all tab webviews to HWND_BOTTOM so they are always the layer below chrome and topbar.
 pub fn send_tabs_to_bottom(window: &tauri::Window) {
     #[cfg(target_os = "windows")]
     {
         if let Ok(parent) = window.hwnd() {
             let parent_ptr = parent.0 as *mut std::ffi::c_void;
             let chrome_ptr = CHROME_HWND.load(Ordering::SeqCst) as *mut std::ffi::c_void;
+            let topbar_ptr = TOPBAR_HWND.load(Ordering::SeqCst) as *mut std::ffi::c_void;
             unsafe {
                 let mut child = win32::FindWindowExW(
                     parent_ptr,
@@ -92,7 +130,7 @@ pub fn send_tabs_to_bottom(window: &tauri::Window) {
                     std::ptr::null(),
                 );
                 while !child.is_null() {
-                    if child != chrome_ptr {
+                    if child != chrome_ptr && child != topbar_ptr {
                         win32::SetWindowPos(
                             child,
                             win32::HWND_BOTTOM,
