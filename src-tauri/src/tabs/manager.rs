@@ -109,7 +109,26 @@ impl TabManagerState {
         // 2. Prepare anti-fingerprinting & cosmetic ad defuser script
         let defuser_script = CosmeticFilter::generate_defuser_script();
 
-        // 3. Build child Webview with native hooks & request filtering
+        // 3. Register new tab in manager state before attaching webview
+        let mut new_tab = Tab::new(tab_id.clone(), resolved_url_str.clone());
+        if is_new_tab {
+            new_tab.title = "New tab".to_string();
+            new_tab.favicon = None;
+        } else if let Ok(parsed) = Url::parse(&resolved_url_str) {
+            if let Some(host) = parsed.host_str() {
+                new_tab.favicon = Some(format!("https://www.google.com/s2/favicons?domain={host}&sz=32"));
+            }
+        }
+
+        let prev_active_id = {
+            let mut manager = self.inner.lock();
+            let prev = manager.active_tab_id.clone();
+            manager.tabs.push(new_tab.clone());
+            manager.active_tab_id = Some(tab_id.clone());
+            prev
+        };
+
+        // 4. Build child Webview with native hooks & request filtering
         let tab_id_clone = tab_id.clone();
         let app_handle_for_nav = app_handle.clone();
         let app_handle_for_load = app_handle.clone();
@@ -144,14 +163,18 @@ impl TabManagerState {
                 }
 
                 // Update tab state in manager atomically
-                let (all_tabs, active_id) = {
+                {
                     let mut mgr = inner_for_nav.lock();
                     if let Some(tab) = mgr.tabs.iter_mut().find(|t| t.id == tab_id_clone) {
                         tab.url = url_str.clone();
                         tab.title = NavigationResolver::title_from_url(&url_str);
+                        if let Ok(parsed) = Url::parse(&url_str) {
+                            if let Some(host) = parsed.host_str() {
+                                tab.favicon = Some(format!("https://www.google.com/s2/favicons?domain={host}&sz=32"));
+                            }
+                        }
                     }
-                    (mgr.tabs.clone(), mgr.active_tab_id.clone())
-                };
+                }
 
                 let _ = app_handle_for_nav.emit(
                     "tab-navigating",
@@ -161,31 +184,27 @@ impl TabManagerState {
                     },
                 );
 
-                let _ = app_handle_for_nav.emit(
-                    "tab-state-changed",
-                    TabStateChangedPayload {
-                        tabs: all_tabs,
-                        active_tab_id: active_id,
-                    },
-                );
-
                 true
             })
             .on_page_load(move |_webview, payload| {
                 let is_loading = matches!(payload.event(), PageLoadEvent::Started);
                 let url_str = payload.url().to_string();
 
-                let (all_tabs, active_id) = {
+                {
                     let mut mgr = inner_for_load.lock();
                     if let Some(tab) = mgr.tabs.iter_mut().find(|t| t.id == tab_id_for_load) {
                         tab.url = url_str.clone();
                         tab.is_loading = is_loading;
                         if !is_loading {
                             tab.title = NavigationResolver::title_from_url(&url_str);
+                            if let Ok(parsed) = Url::parse(&url_str) {
+                                if let Some(host) = parsed.host_str() {
+                                    tab.favicon = Some(format!("https://www.google.com/s2/favicons?domain={host}&sz=32"));
+                                }
+                            }
                         }
                     }
-                    (mgr.tabs.clone(), mgr.active_tab_id.clone())
-                };
+                }
 
                 let _ = app_handle_for_load.emit(
                     "tab-loading",
@@ -195,39 +214,22 @@ impl TabManagerState {
                         is_loading,
                     },
                 );
-
-                if !is_loading {
-                    let _ = app_handle_for_load.emit(
-                        "tab-state-changed",
-                        TabStateChangedPayload {
-                            tabs: all_tabs,
-                            active_tab_id: active_id,
-                        },
-                    );
-                }
             });
 
-        // 4. Attach WebView directly to window WITHOUT ANY LOCK HELD
-        let new_webview = window
-            .add_child(
-                webview_builder,
-                layout.content_rect.position,
-                layout.content_rect.size,
-            )
-            .map_err(|e| format!("Failed to attach child WebView to window: {e}"))?;
-
-        // 5. Update state atomically
-        let mut new_tab = Tab::new(tab_id.clone(), resolved_url_str);
-        if is_new_tab {
-            new_tab.title = "New tab".to_string();
-        }
-
-        let prev_active_id = {
-            let mut manager = self.inner.lock();
-            let prev = manager.active_tab_id.clone();
-            manager.tabs.push(new_tab.clone());
-            manager.active_tab_id = Some(tab_id.clone());
-            prev
+        // 5. Attach WebView directly to window
+        let new_webview = match window.add_child(
+            webview_builder,
+            layout.content_rect.position,
+            layout.content_rect.size,
+        ) {
+            Ok(wv) => wv,
+            Err(e) => {
+                // Rollback tab from manager if window.add_child failed
+                let mut manager = self.inner.lock();
+                manager.tabs.retain(|t| t.id != tab_id);
+                manager.active_tab_id = prev_active_id;
+                return Err(format!("Failed to attach child WebView to window: {e}"));
+            }
         };
 
         // 6. Hide previous and show new WebView + ensure it has focus
@@ -436,6 +438,11 @@ impl TabManagerState {
             if let Some(tab) = mgr.tabs.iter_mut().find(|t| t.id == tab_id) {
                 tab.url = resolved_url.clone();
                 tab.title = NavigationResolver::title_from_url(&resolved_url);
+                if let Ok(parsed) = Url::parse(&resolved_url) {
+                    if let Some(host) = parsed.host_str() {
+                        tab.favicon = Some(format!("https://www.google.com/s2/favicons?domain={host}&sz=32"));
+                    }
+                }
             }
             (mgr.tabs.clone(), mgr.active_tab_id.clone())
         };

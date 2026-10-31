@@ -403,6 +403,17 @@ body, html {
   transition: background 0.15s, color 0.15s;
   position: relative;
   flex-shrink: 0;
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  user-select: none;
+}
+
+.sidebar-tab-item:focus,
+.sidebar-tab-item:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 .sidebar-tab-item:hover {
@@ -414,7 +425,9 @@ body, html {
   background: var(--tab-active-bg);
   color: var(--text-primary);
   font-weight: 500;
-  box-shadow: inset 2px 0 0 0 var(--accent-color);
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 .sidebar-tab-item.drag-over {
@@ -433,7 +446,21 @@ body, html {
 }
 
 .sidebar-tab-item.active .tab-favicon {
-  color: var(--accent-color);
+  color: var(--text-primary);
+}
+
+.tab-real-favicon {
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.fallback-favicon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .tab-spinner {

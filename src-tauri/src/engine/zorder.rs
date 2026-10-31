@@ -145,6 +145,7 @@ pub fn send_tabs_to_bottom(_window: &tauri::Window) {
             let chrome_ptr = CHROME_HWND.load(Ordering::SeqCst) as *mut std::ffi::c_void;
             let topbar_ptr = TOPBAR_HWND.load(Ordering::SeqCst) as *mut std::ffi::c_void;
             unsafe {
+                let mut children = Vec::new();
                 let mut child = win32::FindWindowExW(
                     parent_ptr,
                     std::ptr::null_mut(),
@@ -152,9 +153,18 @@ pub fn send_tabs_to_bottom(_window: &tauri::Window) {
                     std::ptr::null(),
                 );
                 while !child.is_null() {
-                    if child != chrome_ptr && child != topbar_ptr {
+                    children.push(child);
+                    child = win32::FindWindowExW(
+                        parent_ptr,
+                        child,
+                        std::ptr::null(),
+                        std::ptr::null(),
+                    );
+                }
+                for c in children {
+                    if c != chrome_ptr && c != topbar_ptr {
                         win32::SetWindowPos(
-                            child,
+                            c,
                             win32::HWND_BOTTOM,
                             0,
                             0,
@@ -163,12 +173,6 @@ pub fn send_tabs_to_bottom(_window: &tauri::Window) {
                             win32::SWP_NOMOVE | win32::SWP_NOSIZE | win32::SWP_NOACTIVATE,
                         );
                     }
-                    child = win32::FindWindowExW(
-                        parent_ptr,
-                        child,
-                        std::ptr::null(),
-                        std::ptr::null(),
-                    );
                 }
             }
         }

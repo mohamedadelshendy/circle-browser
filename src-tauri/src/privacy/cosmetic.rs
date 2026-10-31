@@ -83,6 +83,40 @@ impl CosmeticFilter {
                         }};
                     }}
                 }} catch(e) {{}}
+
+                // 5. Link Navigation: Ensure all link clicks and popups navigate smoothly in the current tab
+                try {{
+                    var rewriteLink = function(e) {{
+                        var el = e.target;
+                        while (el && el.tagName !== 'A') {{
+                            el = el.parentElement;
+                        }}
+                        if (el && el.tagName === 'A' && el.href) {{
+                            if (el.target && el.target.toLowerCase() !== '_self' && el.target.toLowerCase() !== '_top' && el.target.toLowerCase() !== '_parent') {{
+                                el.target = '_self';
+                            }}
+                        }}
+                    }};
+                    document.addEventListener('click', rewriteLink, true);
+                    document.addEventListener('auxclick', rewriteLink, true);
+
+                    var origOpen = window.open;
+                    window.open = function(url, target, features) {{
+                        if (url && typeof url === 'string' && url !== '' && !url.startsWith('javascript:')) {{
+                            try {{
+                                var resolved = new URL(url, window.location.href).href;
+                                window.location.href = resolved;
+                            }} catch(_) {{
+                                window.location.href = url;
+                            }}
+                            return window;
+                        }}
+                        if (origOpen) {{
+                            return origOpen.apply(this, arguments);
+                        }}
+                        return null;
+                    }};
+                }} catch(e) {{}}
             }})();
             "#
         )
