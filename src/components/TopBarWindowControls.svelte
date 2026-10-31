@@ -25,23 +25,23 @@
     if (hideTimer) {
       clearTimeout(hideTimer);
     }
-    // 200ms grace period before auto-hiding when cursor leaves top area
+    // 250ms grace period before auto-hiding when cursor leaves pill area
     hideTimer = window.setTimeout(() => {
       isHovered = false;
-      // Wait for smooth 180ms CSS slide-up transition before collapsing webview height in Rust
+      // Wait for smooth 220ms CSS slide-up transition before collapsing webview height in Rust
       collapseTimer = window.setTimeout(async () => {
         if (!isHovered) {
           await browserBridge.setTopbarOverlay(false);
         }
         collapseTimer = null;
-      }, 200);
+      }, 240);
       hideTimer = null;
-    }, 200);
+    }, 250);
   }
 
   function handleMouseMove(e: MouseEvent) {
-    // If cursor moves downwards past the 32px bar, trigger leave immediately
-    if (e.clientY >= 32) {
+    // If cursor moves downwards past the pill card (height 32px + margin 6px = 38px, with 6px buffer = 44px), trigger leave
+    if (e.clientY > 44) {
       handleMouseLeave();
     }
   }
@@ -60,71 +60,74 @@
 <div
   class="topbar-root"
   role="region"
-  aria-label="Window Controls Top Bar"
+  aria-label="Window Controls"
   on:mouseenter={handleMouseEnter}
   on:mouseleave={handleMouseLeave}
   on:mousemove={handleMouseMove}
 >
-  <!-- Invisible 5px trigger strip at the very top edge of the screen when bar is collapsed -->
+  <!-- Invisible trigger area at top edge of the corner when collapsed -->
   {#if !isHovered}
     <div
       class="topbar-edge-trigger"
       on:mouseenter={handleMouseEnter}
       role="presentation"
-      title="Hover to reveal Window Controls"
     ></div>
   {/if}
 
-  <!-- Floating Window Controls Bar (#323232) -->
-  <header class="topbar-bar {isHovered ? 'visible' : ''}">
-    <!-- Left & Middle Draggable Window Area -->
-    <div class="topbar-drag-area" data-tauri-drag-region></div>
+  <!-- Floating Window Controls Rectangle with smooth border and 3 buttons -->
+  <div class="controls-card {isHovered ? 'visible' : ''}">
+    <!-- Minimize -->
+    <button
+      type="button"
+      class="win-btn"
+      title="Minimize"
+      aria-label="Minimize window"
+      on:click={() => browserBridge.minimizeWindow()}
+    >
+      <svg width="10" height="1" viewBox="0 0 10 1">
+        <rect width="10" height="1" fill="currentColor"/>
+      </svg>
+    </button>
 
-    <!-- Right Window Control Buttons (Minimize, Maximize/Restore, Close) -->
-    <div class="topbar-window-controls">
-      <!-- Minimize -->
-      <button
-        type="button"
-        class="topbar-btn"
-        title="Minimize"
-        aria-label="Minimize window"
-        on:click={() => browserBridge.minimizeWindow()}
-      >
-        <svg width="10" height="1" viewBox="0 0 10 1">
-          <rect width="10" height="1" fill="currentColor"/>
-        </svg>
-      </button>
+    <!-- Maximize / Restore -->
+    <button
+      type="button"
+      class="win-btn"
+      title="Maximize / Restore"
+      aria-label="Maximize window"
+      on:click={() => browserBridge.maximizeWindow()}
+    >
+      <svg width="10" height="10" viewBox="0 0 10 10">
+        <rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1"/>
+      </svg>
+    </button>
 
-      <!-- Maximize / Restore -->
-      <button
-        type="button"
-        class="topbar-btn"
-        title="Maximize / Restore"
-        aria-label="Maximize window"
-        on:click={() => browserBridge.maximizeWindow()}
-      >
-        <svg width="10" height="10" viewBox="0 0 10 10">
-          <rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1"/>
-        </svg>
-      </button>
-
-      <!-- Close -->
-      <button
-        type="button"
-        class="topbar-btn close-btn"
-        title="Close"
-        aria-label="Close window"
-        on:click={() => browserBridge.closeWindow()}
-      >
-        <svg width="10" height="10" viewBox="0 0 10 10">
-          <path d="M1 1L9 9M9 1L1 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-        </svg>
-      </button>
-    </div>
-  </header>
+    <!-- Cancel / Close -->
+    <button
+      type="button"
+      class="win-btn close-btn"
+      title="Close"
+      aria-label="Close window"
+      on:click={() => browserBridge.closeWindow()}
+    >
+      <svg width="10" height="10" viewBox="0 0 10 10">
+        <path d="M1 1L9 9M9 1L1 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
 </div>
 
 <style>
+  :global(html), :global(body) {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
   .topbar-root {
     width: 100%;
     height: 100%;
@@ -133,6 +136,8 @@
     background: transparent !important;
     user-select: none;
     -webkit-user-select: none;
+    display: flex;
+    justify-content: center;
   }
 
   .topbar-edge-trigger {
@@ -140,72 +145,72 @@
     top: 0;
     left: 0;
     width: 100%;
-    height: 5px;
+    height: 8px;
     background: transparent !important;
     cursor: default;
     z-index: 10;
   }
 
-  .topbar-bar {
-    width: 100%;
+  .controls-card {
+    width: calc(100% - 12px);
+    max-width: 126px;
     height: 32px;
+    margin-top: 6px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    background-color: #323232;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-    transform: translateY(-100%);
+    background-color: #2b2b2b;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    transform: translateY(-44px);
     opacity: 0;
     pointer-events: none;
-    transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease;
+    transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease;
     will-change: transform, opacity;
     z-index: 20;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
   }
 
-  .topbar-bar.visible {
+  .controls-card.visible {
     transform: translateY(0);
     opacity: 1;
     pointer-events: auto;
   }
 
-  .topbar-drag-area {
+  .win-btn {
     flex: 1;
     height: 100%;
-    -webkit-app-region: drag;
-    cursor: default;
-  }
-
-  .topbar-window-controls {
-    display: flex;
-    align-items: center;
-    height: 100%;
-    -webkit-app-region: no-drag;
-    flex-shrink: 0;
-  }
-
-  .topbar-btn {
-    width: 46px;
-    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: transparent;
     border: none;
-    color: #c0c0c6;
+    color: #cfcfd6;
     cursor: pointer;
     outline: none;
-    transition: background 0.15s, color 0.15s;
+    padding: 0;
+    transition: background-color 0.15s ease, color 0.15s ease;
     -webkit-app-region: no-drag;
   }
 
-  .topbar-btn:hover {
-    background: rgba(255, 255, 255, 0.09);
+  .win-btn:hover {
+    background-color: rgba(255, 255, 255, 0.12);
     color: #ffffff;
   }
 
-  .topbar-btn.close-btn:hover {
-    background: #e81123 !important;
+  .win-btn:active {
+    background-color: rgba(255, 255, 255, 0.18);
+  }
+
+  .win-btn.close-btn:hover {
+    background-color: #e81123 !important;
+    color: #ffffff !important;
+  }
+
+  .win-btn.close-btn:active {
+    background-color: #c4101e !important;
     color: #ffffff !important;
   }
 </style>
