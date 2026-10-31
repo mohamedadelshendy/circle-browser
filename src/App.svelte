@@ -74,10 +74,40 @@
       e.preventDefault();
       await handleReload();
     }
-    // Ctrl+Tab: Switch to Next Tab
+    // Ctrl+Tab: Switch to Next Tab (Ctrl+Shift+Tab: Previous Tab)
     else if (e.ctrlKey && e.key === "Tab") {
       e.preventDefault();
       cycleTabs(e.shiftKey ? -1 : 1);
+    }
+    // Alt + Left Arrow: Back
+    else if (e.altKey && e.key === "ArrowLeft") {
+      e.preventDefault();
+      await handleBack();
+    }
+    // Alt + Right Arrow: Forward
+    else if (e.altKey && e.key === "ArrowRight") {
+      e.preventDefault();
+      await handleForward();
+    }
+    // Ctrl + Shift + ArrowUp / PageUp: Reorder Tab Up
+    else if (e.ctrlKey && e.shiftKey && (e.key === "ArrowUp" || e.key === "PageUp")) {
+      e.preventDefault();
+      await moveActiveTab(-1);
+    }
+    // Ctrl + Shift + ArrowDown / PageDown: Reorder Tab Down
+    else if (e.ctrlKey && e.shiftKey && (e.key === "ArrowDown" || e.key === "PageDown")) {
+      e.preventDefault();
+      await moveActiveTab(1);
+    }
+  }
+
+  async function moveActiveTab(offset: number) {
+    if (!activeTabId || tabs.length <= 1) return;
+    const currentIndex = tabs.findIndex((t) => t.id === activeTabId);
+    if (currentIndex === -1) return;
+    const targetIndex = currentIndex + offset;
+    if (targetIndex >= 0 && targetIndex < tabs.length) {
+      await browserBridge.reorderTabs(currentIndex, targetIndex);
     }
   }
 

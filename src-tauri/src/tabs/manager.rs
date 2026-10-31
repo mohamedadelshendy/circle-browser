@@ -115,6 +115,8 @@ impl TabManagerState {
         let app_handle_for_load = app_handle.clone();
         let tab_id_for_load = tab_id.clone();
         let shield_mgr = self.shield_manager.clone();
+        let inner_for_nav = self.inner.clone();
+        let inner_for_load = self.inner.clone();
 
         let webview_builder = WebviewBuilder::new(&webview_label, webview_url)
             .initialization_script(&defuser_script)
@@ -141,6 +143,16 @@ impl TabManagerState {
                     }
                 }
 
+                // Update tab state in manager atomically
+                let (all_tabs, active_id) = {
+                    let mut mgr = inner_for_nav.lock();
+                    if let Some(tab) = mgr.tabs.iter_mut().find(|t| t.id == tab_id_clone) {
+                        tab.url = url_str.clone();
+                        tab.title = NavigationResolver::title_from_url(&url_str);
+                    }
+                    (mgr.tabs.clone(), mgr.active_tab_id.clone())
+                };
+
                 let _ = app_handle_for_nav.emit(
                     "tab-navigating",
                     NavigationEventPayload {
@@ -148,18 +160,51 @@ impl TabManagerState {
                         url: url_str,
                     },
                 );
+
+                let _ = app_handle_for_nav.emit(
+                    "tab-state-changed",
+                    TabStateChangedPayload {
+                        tabs: all_tabs,
+                        active_tab_id: active_id,
+                    },
+                );
+
                 true
             })
             .on_page_load(move |_webview, payload| {
                 let is_loading = matches!(payload.event(), PageLoadEvent::Started);
+                let url_str = payload.url().to_string();
+
+                let (all_tabs, active_id) = {
+                    let mut mgr = inner_for_load.lock();
+                    if let Some(tab) = mgr.tabs.iter_mut().find(|t| t.id == tab_id_for_load) {
+                        tab.url = url_str.clone();
+                        tab.is_loading = is_loading;
+                        if !is_loading {
+                            tab.title = NavigationResolver::title_from_url(&url_str);
+                        }
+                    }
+                    (mgr.tabs.clone(), mgr.active_tab_id.clone())
+                };
+
                 let _ = app_handle_for_load.emit(
                     "tab-loading",
                     TabLoadingPayload {
                         tab_id: tab_id_for_load.clone(),
-                        url: payload.url().to_string(),
+                        url: url_str,
                         is_loading,
                     },
                 );
+
+                if !is_loading {
+                    let _ = app_handle_for_load.emit(
+                        "tab-state-changed",
+                        TabStateChangedPayload {
+                            tabs: all_tabs,
+                            active_tab_id: active_id,
+                        },
+                    );
+                }
             });
 
         // 4. Attach WebView directly to window WITHOUT ANY LOCK HELD
@@ -194,6 +239,7 @@ impl TabManagerState {
         let _ = new_webview.show();
         let _ = new_webview.set_focus();
         crate::engine::send_tabs_to_bottom(window);
+        crate::engine::bring_topbar_to_top();
         crate::engine::bring_chrome_to_top();
 
         // 7. Initialize shield stats
@@ -388,20 +434,8 @@ impl TabManagerState {
         let (all_tabs, active_id) = {
             let mut mgr = self.inner.lock();
             if let Some(tab) = mgr.tabs.iter_mut().find(|t| t.id == tab_id) {
-                tab.url = resolved_url;
-                if tab.url == "browser://newtab" {
-                    tab.title = "New tab".to_string();
-                } else if tab.url.contains("google.com/search") {
-                    if let Ok(u) = Url::parse(&tab.url) {
-                        if let Some((_, q)) = u.query_pairs().find(|(k, _)| k == "q") {
-                            tab.title = format!("{q} - Google Search");
-                        } else {
-                            tab.title = "Google Search".to_string();
-                        }
-                    } else {
-                        tab.title = "Google Search".to_string();
-                    }
-                }
+                tab.url = resolved_url.clone();
+                tab.title = NavigationResolver::title_from_url(&resolved_url);
             }
             (mgr.tabs.clone(), mgr.active_tab_id.clone())
         };
@@ -424,11 +458,13 @@ impl TabManagerState {
 
     pub fn go_back(&self, app_handle: &AppHandle, tab_id: &str) -> Result<(), String> {
         let wv = app_handle.get_webview(tab_id).ok_or("Webview not found")?;
-        wv.eval("window.history.back();").map_err(|e| e.to_string())
+        wv.eval("try { window.history.back(); } catch (e) { console.error('Back navigation failed:', e); }")
+            .map_err(|e| e.to_string())
     }
 
     pub fn go_forward(&self, app_handle: &AppHandle, tab_id: &str) -> Result<(), String> {
         let wv = app_handle.get_webview(tab_id).ok_or("Webview not found")?;
-        wv.eval("window.history.forward();").map_err(|e| e.to_string())
+        wv.eval("try { window.history.forward(); } catch (e) { console.error('Forward navigation failed:', e); }")
+            .map_err(|e| e.to_string())
     }
 }
